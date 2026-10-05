@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#173f32" />
+  <title>Pathfinder Track</title>
+  <style>
+:root {
+  --forest-950: #102d25;
+  --forest-900: #173f32;
+  --forest-800: #1f5743;
+  --forest-700: #2c6d55;
+  --forest-100: #e9f3ee;
+  --cream: #f6f4ec;
+  --paper: #ffffff;
+  --ink: #17211c;
+  --muted: #68746e;
+  --line: #dfe6e2;
+  --amber: #d7922d;
+  --amber-soft: #fff1d8;
+  --red: #b64a42;
+  --red-soft: #fbe9e7;
+  --shadow: 0 16px 40px rgba(23, 63, 50, .10);
+  --radius-xl: 26px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--cream); }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(44,109,85,.10), transparent 32rem),
+    var(--cream);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+.shell { min-height: 100vh; }
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+.brand-mark {
+  width: 40px; height: 40px;
+  border-radius: 14px;
+  display: grid; place-items: center;
+  background: var(--forest-900);
+  color: white;
+  box-shadow: 0 10px 24px rgba(23,63,50,.22);
+}
+.brand-mark svg { width: 22px; height: 22px; }
+.brand-title { font-size: 18px; }
+.brand-title span { color: var(--forest-700); }
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.08fr .92fr;
+}
+.hero {
+  padding: 48px clamp(28px, 6vw, 82px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: white;
+  background:
+    linear-gradient(155deg, rgba(16,45,37,.96), rgba(31,87,67,.94)),
+    radial-gradient(circle at 20% 20%, #2c6d55, #102d25);
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  width: 420px; height: 420px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 50%;
+  right: -160px; bottom: -170px;
+  box-shadow: 0 0 0 55px rgba(255,255,255,.035), 0 0 0 110px rgba(255,255,255,.025);
+}
+.hero .brand-mark { background: rgba(255,255,255,.14); box-shadow: none; }
+.hero .brand-title span { color: #b9dec8; }
+.hero-copy { max-width: 650px; padding: 72px 0 40px; position: relative; z-index: 1; }
+.eyebrow { text-transform: uppercase; letter-spacing: .13em; font-weight: 800; font-size: 12px; color: #b9dec8; }
+.hero h1 { font-size: clamp(42px, 6vw, 78px); line-height: .98; margin: 18px 0 22px; letter-spacing: -.055em; }
+.hero p { max-width: 560px; font-size: clamp(17px, 2vw, 21px); line-height: 1.6; color: rgba(255,255,255,.76); }
+.hero-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+.hero-pill { border: 1px solid rgba(255,255,255,.16); padding: 10px 13px; border-radius: 999px; font-size: 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.06); backdrop-filter: blur(8px); }
+.hero-foot { position: relative; z-index: 1; color: rgba(255,255,255,.54); font-size: 12px; }
+
+.login-wrap { display: grid; place-items: center; padding: 30px; }
+.login-card { width: min(430px, 100%); background: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.75); border-radius: 30px; box-shadow: var(--shadow); padding: 34px; backdrop-filter: blur(14px); }
+.login-card h2 { margin: 8px 0 8px; font-size: 30px; letter-spacing: -.04em; }
+.login-card > p { margin: 0 0 26px; color: var(--muted); line-height: 1.55; }
+.field { display: grid; gap: 8px; margin: 14px 0; }
+.field label { font-weight: 750; font-size: 13px; }
+.field input { width: 100%; border: 1px solid var(--line); border-radius: 14px; background: white; padding: 14px 15px; outline: none; transition: .2s; }
+.field input:focus { border-color: var(--forest-700); box-shadow: 0 0 0 4px rgba(44,109,85,.10); }
+.btn { border: 0; border-radius: 14px; padding: 14px 18px; font-weight: 800; transition: transform .12s, opacity .2s, box-shadow .2s; }
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { width: 100%; color: white; background: var(--forest-900); box-shadow: 0 10px 22px rgba(23,63,50,.18); }
+.btn-secondary { width: 100%; margin-top: 10px; color: var(--forest-900); background: var(--forest-100); }
+.btn-ghost { background: transparent; color: var(--forest-900); border: 1px solid var(--line); }
+.form-message { min-height: 20px; margin-top: 12px; font-size: 13px; color: var(--red); }
+.login-note { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.app-layout { min-height: 100vh; display: grid; grid-template-columns: 248px 1fr; }
+.sidebar { background: var(--forest-950); color: white; padding: 26px 20px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.sidebar .brand { padding: 0 8px 22px; }
+.sidebar .brand-mark { background: rgba(255,255,255,.10); box-shadow: none; }
+.sidebar .brand-title span { color: #acd7bc; }
+.nav { display: grid; gap: 7px; margin-top: 16px; }
+.nav button { color: rgba(255,255,255,.70); background: transparent; border: 0; text-align: left; padding: 12px 13px; border-radius: 12px; font-weight: 650; display: flex; gap: 10px; align-items: center; }
+.nav button.active, .nav button:hover { background: rgba(255,255,255,.09); color: white; }
+.sidebar-spacer { flex: 1; }
+.profile-mini { border-top: 1px solid rgba(255,255,255,.10); padding: 18px 8px 0; display: flex; gap: 10px; align-items: center; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; background: #b9dec8; color: var(--forest-950); display: grid; place-items: center; font-weight: 900; }
+.profile-mini strong { display: block; font-size: 13px; }
+.profile-mini small { color: rgba(255,255,255,.55); }
+
+.main { padding: 34px clamp(22px, 5vw, 58px) 60px; min-width: 0; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 30px; }
+.topbar h1 { margin: 0; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.045em; }
+.topbar p { margin: 7px 0 0; color: var(--muted); }
+.top-actions { display: flex; gap: 10px; }
+
+.grid { display: grid; gap: 18px; }
+.stats { grid-template-columns: repeat(4, minmax(0,1fr)); }
+.stat { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 20px; box-shadow: 0 8px 26px rgba(23,63,50,.045); }
+.stat .label { color: var(--muted); font-size: 13px; font-weight: 700; }
+.stat .value { font-size: 31px; font-weight: 900; letter-spacing: -.04em; margin: 10px 0 5px; }
+.stat .meta { color: var(--forest-700); font-size: 12px; font-weight: 750; }
+
+.content-grid { grid-template-columns: 1.25fr .75fr; margin-top: 18px; align-items: start; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: 0 8px 30px rgba(23,63,50,.05); overflow: hidden; }
+.card-head { padding: 22px 22px 16px; display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+.card-head h3 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+.card-head p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.card-body { padding: 0 22px 22px; }
+.next-meeting { padding: 22px; background: linear-gradient(135deg, var(--forest-900), var(--forest-700)); color: white; }
+.next-meeting .eyebrow { color: #c9e7d5; }
+.next-meeting h2 { margin: 8px 0 6px; font-size: 27px; letter-spacing: -.035em; }
+.next-meeting p { margin: 0; color: rgba(255,255,255,.70); }
+.meeting-action { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-top:22px; }
+.meeting-action .btn { background:white; color:var(--forest-900); }
+.score-chip { padding: 9px 11px; border-radius: 999px; background: rgba(255,255,255,.10); font-size: 12px; font-weight: 750; }
+
+.member-list { display: grid; gap: 10px; }
+.member-row { border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+.member-avatar { width: 42px; height: 42px; border-radius: 14px; background: var(--forest-100); color: var(--forest-800); display: grid; place-items: center; font-weight: 900; }
+.member-row strong { display: block; font-size: 14px; }
+.member-row small { display: block; color: var(--muted); margin-top: 3px; }
+.points { font-size: 14px; font-weight: 900; color: var(--forest-800); }
+
+.progress-block { margin: 2px 0 18px; }
+.progress-label { display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:13px; margin-bottom:8px; }
+.progress { height: 9px; border-radius: 999px; background: #edf0ee; overflow:hidden; }
+.progress > span { display:block; height:100%; border-radius:inherit; background:var(--forest-700); }
+
+.meeting-page { max-width: 980px; }
+.back-row { display:flex; gap:10px; align-items:center; color:var(--muted); margin-bottom:14px; font-size:13px; }
+.score-legend { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+.legend-pill { border:1px solid var(--line); background:white; padding:8px 10px; border-radius:999px; color:var(--muted); font-size:12px; }
+.score-person { background:white; border:1px solid var(--line); border-radius:22px; padding:18px; margin:13px 0; box-shadow:0 8px 24px rgba(23,63,50,.04); }
+.score-person-head { display:flex; justify-content:space-between; gap:14px; align-items:center; margin-bottom:14px; }
+.score-person-head strong { font-size:16px; }
+.presence-toggle { border:0; border-radius:999px; padding:8px 11px; font-weight:800; font-size:12px; background:var(--forest-100); color:var(--forest-800); }
+.presence-toggle.absent { background:var(--red-soft); color:var(--red); }
+.criteria { display:grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap:8px; }
+.criterion { border:1px solid var(--line); border-radius:14px; background:white; padding:11px 8px; text-align:center; min-height:72px; color:var(--muted); }
+.criterion strong { display:block; color:var(--ink); font-size:12px; margin-bottom:5px; }
+.criterion.active { border-color:#a8d3bb; background:var(--forest-100); color:var(--forest-800); }
+.criterion:disabled { opacity:.45; cursor:not-allowed; }
+.person-total { margin-top:12px; display:flex; justify-content:flex-end; font-weight:900; color:var(--forest-800); }
+.sticky-save { position: sticky; bottom: 14px; margin-top:18px; background:rgba(246,244,236,.90); backdrop-filter:blur(12px); padding:10px; border-radius:18px; }
+
+.mobile-top, .bottom-nav { display:none; }
+.empty { color: var(--muted); text-align:center; padding: 28px 10px; }
+.loading { min-height:100vh; display:grid; place-items:center; color:var(--forest-900); font-weight:800; }
+
+@media (max-width: 960px) {
+  .login-page { grid-template-columns: 1fr; }
+  .hero { min-height: 390px; }
+  .hero-copy { padding: 48px 0 20px; }
+  .hero-foot { display:none; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .content-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px) {
+  body { padding-bottom: 76px; }
+  .hero { min-height: 330px; padding: 30px 24px; }
+  .hero h1 { font-size: 46px; }
+  .hero-copy { padding: 38px 0 6px; }
+  .hero p { font-size: 16px; }
+  .hero-pills { display:none; }
+  .login-wrap { padding: 22px 18px; }
+  .login-card { padding: 25px; border-radius:24px; }
+  .app-layout { display:block; }
+  .sidebar { display:none; }
+  .main { padding: 20px 17px 24px; }
+  .mobile-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .mobile-top .brand-title { font-size:16px; }
+  .topbar { align-items:flex-start; }
+  .top-actions { display:none; }
+  .stats { grid-template-columns: 1fr 1fr; gap:10px; }
+  .stat { padding:16px; border-radius:17px; }
+  .stat .value { font-size:26px; }
+  .content-grid { margin-top:10px; gap:10px; }
+  .card { border-radius:20px; }
+  .card-head, .card-body { padding-left:17px; padding-right:17px; }
+  .criteria { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .criterion:last-child { grid-column: 1 / -1; }
+  .bottom-nav { display:grid; grid-template-columns:repeat(4,1fr); position:fixed; bottom:0; left:0; right:0; z-index:50; background:rgba(255,255,255,.94); border-top:1px solid var(--line); backdrop-filter:blur(18px); padding:8px 8px max(8px, env(safe-area-inset-bottom)); }
+  .bottom-nav button { border:0; background:transparent; padding:9px 3px; color:var(--muted); font-size:11px; font-weight:750; }
+  .bottom-nav button.active { color:var(--forest-800); }
+}
+.score-person-head small { display:block; margin-top:4px; color:var(--muted); }
+@media (max-width: 720px) { .sticky-save { bottom: 74px; } }
+
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+const SUPABASE_URL = 'https://ddusmreyrqumzlbpdanz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_tr1_Lur6n-7yq_ApNvyVxg_IysPKFto';
+const app = document.getElementById('app');
+
+const scoreCategories = [
+  { key: 'punctuality', name: 'Punctuality', points: 10, icon: '⏱' },
+  { key: 'uniform', name: 'Uniform', points: 10, icon: '◈' },
+  { key: 'bible', name: 'Bible', points: 5, icon: '▣' },
+  { key: 'participation', name: 'Participation', points: 15, icon: '✦' },
+  { key: 'material', name: 'Material', points: 5, icon: '▤' },
+];
+
+const demoState = {
+  mode: 'demo',
+  user: { full_name: 'Demo Counselor', role: 'instructor' },
+  club: { name: 'Pathfinder Track Demo' },
+  unit: { name: 'Eagle Unit' },
+  members: [
+    { id: 'alex', full_name: 'Alex Carter', class: 'Friend', grade: 5, present: true, scores: { punctuality:true, uniform:true, bible:true, participation:true, material:true } },
+    { id: 'jordan', full_name: 'Jordan Lee', class: 'Companion', grade: 6, present: true, scores: { punctuality:true, uniform:true, bible:false, participation:true, material:true } },
+    { id: 'taylor', full_name: 'Taylor Morgan', class: 'Explorer', grade: 7, present: false, scores: { punctuality:false, uniform:false, bible:false, participation:false, material:false } },
+  ],
+  meeting: { date: 'Oct 4, 2026', title: 'Club Meeting' }
+};
+
+let state = null;
+let route = 'dashboard';
+
+function iconPath() {
+  return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 18.2C8.8 16.8 8.3 11.6 12 10.3c3.8-1.3 4.7 3 7 1.9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="18" r="2" fill="currentColor"/><path d="M12.2 4.2c2.2 0 4 1.8 4 4 0 3-4 6.2-4 6.2s-4-3.2-4-6.2c0-2.2 1.8-4 4-4Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12.2" cy="8.2" r="1.2" fill="currentColor"/></svg>`;
+}
+
+function initials(name='') { return name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase(); }
+function maxScore(){ return scoreCategories.reduce((a,c)=>a+c.points,0); }
+function memberPoints(m){ if(!m.present) return 0; return scoreCategories.reduce((sum,c)=>sum+(m.scores?.[c.key] ? c.points : 0),0); }
+
+function brand() {
+  return `<div class="brand"><div class="brand-mark">${iconPath()}</div><div class="brand-title">Pathfinder <span>Track</span></div></div>`;
+}
+
+function loginView() {
+  app.innerHTML = `<div class="login-page shell">
+    <section class="hero">
+      ${brand()}
+      <div class="hero-copy">
+        <div class="eyebrow">Club management, simplified</div>
+        <h1>Track progress.<br>Build belonging.</h1>
+        <p>A friendly workspace for Pathfinder clubs to manage units, attendance, merit points and class progress — without spreadsheets getting in the way.</p>
+        <div class="hero-pills"><span class="hero-pill">Unit scoring</span><span class="hero-pill">Class progress</span><span class="hero-pill">Mobile first</span><span class="hero-pill">Multi-club ready</span></div>
+      </div>
+      <div class="hero-foot">Pathfinder Track · MVP Preview</div>
+    </section>
+    <section class="login-wrap">
+      <form class="login-card" id="loginForm">
+        <div class="eyebrow">Welcome back</div>
+        <h2>Sign in</h2>
+        <p>Use the email your club director invited to Pathfinder Track.</p>
+        <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required></div>
+        <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+        <button class="btn btn-primary" type="submit">Sign in</button>
+        <button class="btn btn-secondary" type="button" id="demoBtn">Preview demo</button>
+        <div class="form-message" id="formMessage"></div>
+        <div class="login-note">MVP access is invitation-only. Pathfinder members do not need individual login accounts unless their club enables them later.</div>
+      </form>
+    </section>
+  </div>`;
+
+  document.getElementById('demoBtn').onclick = () => { state = structuredClone(demoState); route='dashboard'; renderApp(); };
+  document.getElementById('loginForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('formMessage');
+    msg.textContent = 'Signing in…';
+    try {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const auth = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method:'POST', headers:{ 'apikey':SUPABASE_KEY, 'Content-Type':'application/json' }, body:JSON.stringify({email,password})
+      });
+      const session = await auth.json();
+      if(!auth.ok) throw new Error(session.error_description || session.msg || 'Unable to sign in.');
+      localStorage.setItem('pt_access_token', session.access_token);
+      await loadAuthenticatedState(session.access_token);
+      route='dashboard'; renderApp();
+    } catch(err) { msg.textContent = err.message; }
+  };
+}
+
+async function sb(path, token) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${token}`, Accept:'application/json' } });
+  if(!res.ok) throw new Error(`Data request failed (${res.status}).`);
+  return res.json();
+}
+
+async function loadAuthenticatedState(token) {
+  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${token}` } });
+  if(!userRes.ok) throw new Error('Your session could not be loaded.');
+  const authUser = await userRes.json();
+  const profiles = await sb(`profiles?id=eq.${encodeURIComponent(authUser.id)}&select=id,full_name,role,club_id,unit_id`, token);
+  const profile = profiles[0];
+  if(!profile) throw new Error('Your Pathfinder Track profile is not configured yet.');
+  if(!profile.club_id) throw new Error('Your account is not assigned to a club yet.');
+  const [clubs, units, members, categories, meetings] = await Promise.all([
+    sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, token),
+    profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name&order=name`, token),
+    sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,class_levels(name)&active=eq.true&order=full_name`, token),
+    sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,name,default_points,is_bonus,sort_order&order=sort_order`, token),
+    sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id&order=meeting_date.desc&limit=5`, token),
+  ]);
+  state = {
+    mode:'live', token,
+    user:profile,
+    club:clubs[0] || {name:'My Club'},
+    unit: profile.unit_id ? (units[0] || {name:'My Unit'}) : {name:'All Units'},
+    members: members.map(m=>({id:m.id,full_name:m.full_name,class:m.class_levels?.name||'Class',grade:m.school_grade,present:true,scores:{}})),
+    categories,
+    meetings
+  };
+}
+
+function sidebar() {
+  return `<aside class="sidebar">
+    ${brand()}
+    <nav class="nav">
+      <button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂ Dashboard</button>
+      <button class="${route==='meeting'?'active':''}" data-route="meeting">✓ Meeting</button>
+      <button>♙ Members</button>
+      <button>◫ Classes</button>
+      <button>⚙ Settings</button>
+    </nav>
+    <div class="sidebar-spacer"></div>
+    <div class="profile-mini"><div class="avatar">${initials(state.user.full_name)}</div><div><strong>${state.user.full_name}</strong><small>${state.user.role}</small></div></div>
+  </aside>`;
+}
+
+function mobileTop(){ return `<div class="mobile-top">${brand()}<div class="avatar">${initials(state.user.full_name)}</div></div>`; }
+function bottomNav(){ return `<nav class="bottom-nav"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button>♙<br>Members</button><button>⚙<br>More</button></nav>`; }
+
+function dashboardView() {
+  const members = state.members || [];
+  const present = members.filter(m=>m.present!==false).length;
+  const totalPoints = members.reduce((s,m)=>s+memberPoints(m),0);
+  const maxPointsTotal = members.filter(m=>m.present!==false).length * maxScore();
+  const scorePct = maxPointsTotal ? Math.round(totalPoints/maxPointsTotal*100) : 0;
+  return `${mobileTop()}
+    <div class="topbar"><div><h1>Good afternoon 👋</h1><p>${state.unit.name} · ${state.club.name}</p></div><div class="top-actions"><button class="btn btn-ghost" id="logoutBtn">Sign out</button></div></div>
+    <section class="grid stats">
+      <div class="stat"><div class="label">Unit members</div><div class="value">${members.length}</div><div class="meta">Active roster</div></div>
+      <div class="stat"><div class="label">Attendance</div><div class="value">${present}/${members.length||0}</div><div class="meta">Current demo meeting</div></div>
+      <div class="stat"><div class="label">Merit score</div><div class="value">${scorePct}%</div><div class="meta">${totalPoints} pts earned</div></div>
+      <div class="stat"><div class="label">Class progress</div><div class="value">68%</div><div class="meta">Demo indicator</div></div>
+    </section>
+    <section class="grid content-grid">
+      <div class="card">
+        <div class="next-meeting">
+          <div class="eyebrow">Next action</div><h2>Record today's meeting</h2><p>${state.meeting?.date || 'Current meeting'} · ${state.unit.name}</p>
+          <div class="meeting-action"><span class="score-chip">45 pts max / Pathfinder</span><button class="btn" data-route="meeting">Open meeting →</button></div>
+        </div>
+        <div class="card-head"><div><h3>My unit</h3><p>Quick member overview</p></div><button class="btn btn-ghost">View all</button></div>
+        <div class="card-body member-list">${members.length ? members.map(m=>`<div class="member-row"><div class="member-avatar">${initials(m.full_name)}</div><div><strong>${m.full_name}</strong><small>${m.class}${m.grade ? ` · Grade ${m.grade}`:''}</small></div><div class="points">${memberPoints(m)} pts</div></div>`).join('') : '<div class="empty">No members assigned yet.</div>'}</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h3>Unit snapshot</h3><p>Simple, useful signals</p></div></div>
+        <div class="card-body">
+          <div class="progress-block"><div class="progress-label"><span>Attendance</span><strong>${members.length?Math.round(present/members.length*100):0}%</strong></div><div class="progress"><span style="width:${members.length?present/members.length*100:0}%"></span></div></div>
+          <div class="progress-block"><div class="progress-label"><span>Meeting score</span><strong>${scorePct}%</strong></div><div class="progress"><span style="width:${scorePct}%"></span></div></div>
+          <div class="progress-block"><div class="progress-label"><span>Class completion</span><strong>68%</strong></div><div class="progress"><span style="width:68%"></span></div></div>
+          <div class="card" style="box-shadow:none;border-radius:18px;background:var(--amber-soft);border-color:#f1ddb8"><div class="card-body" style="padding-top:18px"><strong style="color:#8f5d18">Tip</strong><p style="color:#8a704b;font-size:13px;line-height:1.5;margin-bottom:0">Keep weekly scoring quick. Tap only the items that need adjustment, then save the meeting.</p></div></div>
+        </div>
+      </div>
+    </section>`;
+}
+
+function meetingView() {
+  return `${mobileTop()}<div class="meeting-page">
+    <div class="back-row"><button class="btn btn-ghost" data-route="dashboard">← Dashboard</button><span>Meeting scoring</span></div>
+    <div class="topbar"><div><h1>Meeting · ${state.meeting?.date || 'Today'}</h1><p>${state.unit.name} · Tap each criterion to award or remove points.</p></div></div>
+    <div class="score-legend">${scoreCategories.map(c=>`<span class="legend-pill">${c.name} ${c.points} pts</span>`).join('')}<span class="legend-pill">Bonus optional</span></div>
+    <div id="scoreList">${state.members.map(scoreCard).join('')}</div>
+    <div class="sticky-save"><button class="btn btn-primary" id="saveMeeting">Save meeting</button></div>
+  </div>`;
+}
+
+function scoreCard(m) {
+  const total = memberPoints(m);
+  return `<section class="score-person" data-member="${m.id}">
+    <div class="score-person-head"><div><strong>${m.full_name}</strong><small style="color:var(--muted)">${m.class}${m.grade?` · Grade ${m.grade}`:''}</small></div><button class="presence-toggle ${m.present?'':'absent'}" data-presence="${m.id}">${m.present?'Present':'Absent'}</button></div>
+    <div class="criteria">${scoreCategories.map(c=>`<button class="criterion ${m.scores?.[c.key]?'active':''}" ${m.present?'':'disabled'} data-score="${m.id}" data-key="${c.key}"><strong>${c.icon} ${c.name}</strong>${m.scores?.[c.key]?'✓ ':''}${c.points} pts</button>`).join('')}</div>
+    <div class="person-total">${total} / ${m.present?maxScore():0} pts</div>
+  </section>`;
+}
+
+function renderApp() {
+  if(!state) return loginView();
+  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():dashboardView()}</main></div>${bottomNav()}`;
+  bindNavigation();
+  const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
+  document.querySelectorAll('[data-presence]').forEach(btn=>btn.onclick=()=>togglePresence(btn.dataset.presence));
+  document.querySelectorAll('[data-score]').forEach(btn=>btn.onclick=()=>toggleScore(btn.dataset.score,btn.dataset.key));
+  const save = document.getElementById('saveMeeting'); if(save) save.onclick = ()=>saveMeeting(save);
+}
+
+function bindNavigation(){ document.querySelectorAll('[data-route]').forEach(el=>el.onclick=()=>{ route=el.dataset.route; renderApp(); }); }
+function togglePresence(id){ const m=state.members.find(x=>String(x.id)===String(id)); m.present=!m.present; if(!m.present) Object.keys(m.scores||{}).forEach(k=>m.scores[k]=false); else scoreCategories.forEach(c=>m.scores[c.key]=true); renderApp(); }
+function toggleScore(id,key){ const m=state.members.find(x=>String(x.id)===String(id)); if(!m.present) return; m.scores ||= {}; m.scores[key]=!m.scores[key]; renderApp(); }
+async function saveMeeting(btn){ btn.textContent = state.mode==='demo' ? 'Demo saved ✓' : 'MVP write-back comes next ✓'; btn.disabled=true; setTimeout(()=>{btn.disabled=false;btn.textContent='Save meeting';},1600); }
+function signOut(){ localStorage.removeItem('pt_access_token'); state=null; route='dashboard'; loginView(); }
+
+(async function boot(){
+  const params = new URLSearchParams(location.search);
+  if(params.get('demo') === '1') {
+    state = structuredClone(demoState);
+    route = params.get('view') === 'meeting' ? 'meeting' : 'dashboard';
+    renderApp();
+  } else {
+    const token = localStorage.getItem('pt_access_token');
+    if(token){
+      app.innerHTML='<div class="loading">Loading Pathfinder Track…</div>';
+      try { await loadAuthenticatedState(token); renderApp(); }
+      catch { localStorage.removeItem('pt_access_token'); loginView(); }
+    } else loginView();
+  }
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+})();
+
+  </script>
+</body>
+</html>
