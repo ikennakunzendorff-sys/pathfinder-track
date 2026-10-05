@@ -132,7 +132,13 @@ button { cursor: pointer; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 30px; }
 .topbar h1 { margin: 0; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.045em; }
 .topbar p { margin: 7px 0 0; color: var(--muted); }
-.top-actions { display: flex; gap: 10px; }
+.top-actions { display: flex; gap: 10px; align-items:center; }
+.unit-picker { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; font-weight:750; }
+.unit-select { border:1px solid var(--line); border-radius:12px; background:white; color:var(--ink); padding:10px 12px; min-width:190px; outline:none; }
+.unit-select:focus { border-color:var(--forest-700); box-shadow:0 0 0 3px rgba(44,109,85,.10); }
+.mobile-unit-picker { display:none; margin:-12px 0 18px; }
+.mobile-unit-picker .unit-picker { width:100%; }
+.mobile-unit-picker .unit-select { flex:1; min-width:0; }
 
 .grid { display: grid; gap: 18px; }
 .stats { grid-template-columns: repeat(4, minmax(0,1fr)); }
@@ -213,6 +219,7 @@ button { cursor: pointer; }
   .mobile-top .brand-title { font-size:16px; }
   .topbar { align-items:flex-start; }
   .top-actions { display:none; }
+  .mobile-unit-picker { display:block; }
   .stats { grid-template-columns: 1fr 1fr; gap:10px; }
   .stat { padding:16px; border-radius:17px; }
   .stat .value { font-size:26px; }
@@ -292,6 +299,12 @@ function iconPath() {
 function initials(name='') { return name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase(); }
 function maxScore(){ return scoreCategories.reduce((a,c)=>a+c.points,0); }
 function memberPoints(m){ if(!m.present) return 0; return scoreCategories.reduce((sum,c)=>sum+(m.scores?.[c.key] ? c.points : 0),0); }
+function activeUnitId(){ return state?.selectedUnitId || state?.user?.unit_id || null; }
+function unitPicker(id='unitSelect'){
+  if(state?.mode!=='live' || state?.user?.role!=='director' || !state?.units?.length) return '';
+  return `<label class="unit-picker"><span>Unit</span><select class="unit-select" id="${id}">${state.units.map(u=>`<option value="${u.id}" ${String(u.id)===String(activeUnitId())?'selected':''}>${u.name}</option>`).join('')}</select></label>`;
+}
+function mobileUnitPicker(){ const picker=unitPicker('unitSelectMobile'); return picker ? `<div class="mobile-unit-picker">${picker}</div>` : ''; }
 
 function brand() {
   return `<div class="brand"><div class="brand-mark">${iconPath()}</div><div class="brand-title">Pathfinder <span>Track</span></div></div>`;
@@ -382,13 +395,12 @@ async function loadAuthenticatedState(token) {
   if(!profile.club_id) throw new Error('Your account is not assigned to a club yet.');
 
   const today = localISODate();
-  const meetingFilter = profile.unit_id ? `&unit_id=eq.${encodeURIComponent(profile.unit_id)}` : '';
   const [clubs, units, members, categories, meetings, clubYears] = await Promise.all([
     sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, token),
     profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name&order=name`, token),
     sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,class_levels(name)&active=eq.true&order=full_name`, token),
     sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,name,default_points,is_bonus,sort_order&order=sort_order`, token),
-    sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}${meetingFilter}&select=id,meeting_date,title,unit_id,club_year_id&order=meeting_date.desc&limit=10`, token),
+    sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id,club_year_id&order=meeting_date.desc&limit=50`, token),
     sb(`club_years?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,label,start_date,end_date&order=start_date.desc&limit=1`, token),
   ]);
 
@@ -397,12 +409,45 @@ async function loadAuthenticatedState(token) {
     .map(c=>({ id:c.id, key:c.id, name:c.name, points:c.default_points, icon:categoryIcon(c.name) }));
   scoreCategories = liveCategories.length ? liveCategories : structuredClone(defaultScoreCategories);
 
-  const todayMeeting = meetings.find(m=>m.meeting_date === today && (!profile.unit_id || m.unit_id === profile.unit_id)) || null;
+  const storedUnitId = localStorage.getItem('pt_unit_id');
+  const selectedUnitId = profile.unit_id
+    || (units.some(u=>String(u.id)===String(storedUnitId)) ? storedUnitId : null)
+    || units[0]?.id
+    || null;
+
+  state = {
+    mode:'live', token,
+    user:profile,
+    club:clubs[0] || {name:'My Club'},
+    units,
+    selectedUnitId,
+    unit: units.find(u=>String(u.id)===String(selectedUnitId)) || {name:'No Unit'},
+    allMembers:members,
+    members:[],
+    categories,
+    clubYear:clubYears[0] || null,
+    meetings,
+    meeting:null,
+  };
+
+  await loadSelectedUnit(today);
+}
+
+async function loadSelectedUnit(dateStr=localISODate()) {
+  const unitId = activeUnitId();
+  if(!state || !unitId) {
+    if(state){ state.members=[]; state.meeting={id:null,rawDate:dateStr,date:formatMeetingDate(dateStr),title:'Club Meeting',unit_id:null}; }
+    return;
+  }
+
+  state.selectedUnitId = unitId;
+  state.unit = state.units.find(u=>String(u.id)===String(unitId)) || {id:unitId,name:'Selected Unit'};
+  const todayMeeting = state.meetings.find(m=>m.meeting_date===dateStr && String(m.unit_id)===String(unitId)) || null;
   let attendance = [], scores = [];
   if(todayMeeting) {
     [attendance, scores] = await Promise.all([
-      sb(`attendance?meeting_id=eq.${encodeURIComponent(todayMeeting.id)}&select=member_id,present`, token),
-      sb(`meeting_scores?meeting_id=eq.${encodeURIComponent(todayMeeting.id)}&select=member_id,category_id,points_awarded,max_points_snapshot`, token),
+      sb(`attendance?meeting_id=eq.${encodeURIComponent(todayMeeting.id)}&select=member_id,present`, state.token),
+      sb(`meeting_scores?meeting_id=eq.${encodeURIComponent(todayMeeting.id)}&select=member_id,category_id,points_awarded,max_points_snapshot`, state.token),
     ]);
   }
 
@@ -414,34 +459,33 @@ async function loadAuthenticatedState(token) {
     scoresByMember.get(key).set(String(row.category_id),row);
   }
 
-  const mappedMembers = members.map(m=>{
-    const memberAttendance = attendanceByMember.get(String(m.id));
-    const memberScoreRows = scoresByMember.get(String(m.id));
-    const present = todayMeeting ? (memberAttendance ? memberAttendance.present : true) : true;
-    const scoreState = {};
-    for(const c of scoreCategories) {
-      if(todayMeeting && memberScoreRows?.size) {
-        scoreState[c.key] = (memberScoreRows.get(String(c.id))?.points_awarded || 0) > 0;
-      } else {
-        scoreState[c.key] = present;
+  state.members = state.allMembers
+    .filter(m=>String(m.unit_id)===String(unitId))
+    .map(m=>{
+      const memberAttendance = attendanceByMember.get(String(m.id));
+      const memberScoreRows = scoresByMember.get(String(m.id));
+      const present = todayMeeting ? (memberAttendance ? memberAttendance.present : true) : true;
+      const scoreState = {};
+      for(const c of scoreCategories) {
+        if(todayMeeting && memberScoreRows?.size) scoreState[c.key] = (memberScoreRows.get(String(c.id))?.points_awarded || 0) > 0;
+        else scoreState[c.key] = present;
       }
-    }
-    return {id:m.id,full_name:m.full_name,class:m.class_levels?.name||'Class',grade:m.school_grade,unit_id:m.unit_id,present,scores:scoreState};
-  });
+      return {id:m.id,full_name:m.full_name,class:m.class_levels?.name||'Class',grade:m.school_grade,unit_id:m.unit_id,present,scores:scoreState};
+    });
 
-  state = {
-    mode:'live', token,
-    user:profile,
-    club:clubs[0] || {name:'My Club'},
-    unit: profile.unit_id ? (units[0] || {name:'My Unit'}) : {name:'All Units'},
-    members:mappedMembers,
-    categories,
-    clubYear:clubYears[0] || null,
-    meetings,
-    meeting: todayMeeting
-      ? {...todayMeeting, date:formatMeetingDate(todayMeeting.meeting_date), rawDate:todayMeeting.meeting_date}
-      : {id:null, meeting_date:today, rawDate:today, date:formatMeetingDate(today), title:'Club Meeting', unit_id:profile.unit_id},
-  };
+  state.meeting = todayMeeting
+    ? {...todayMeeting,date:formatMeetingDate(todayMeeting.meeting_date),rawDate:todayMeeting.meeting_date}
+    : {id:null,meeting_date:dateStr,rawDate:dateStr,date:formatMeetingDate(dateStr),title:'Club Meeting',unit_id:unitId};
+}
+
+async function changeUnit(unitId) {
+  if(!unitId || String(unitId)===String(activeUnitId())) return;
+  localStorage.setItem('pt_unit_id', unitId);
+  state.selectedUnitId = unitId;
+  state.unit = state.units.find(u=>String(u.id)===String(unitId)) || {id:unitId,name:'Selected Unit'};
+  app.innerHTML='<div class="loading">Loading unit…</div>';
+  await loadSelectedUnit();
+  renderApp();
 }
 
 function sidebar() {
@@ -469,7 +513,8 @@ function dashboardView() {
   const maxPointsTotal = members.filter(m=>m.present!==false).length * maxScore();
   const scorePct = maxPointsTotal ? Math.round(totalPoints/maxPointsTotal*100) : 0;
   return `${mobileTop()}
-    <div class="topbar"><div><h1>Good afternoon 👋</h1><p>${state.unit.name} · ${state.club.name}</p></div><div class="top-actions"><button class="btn btn-ghost" id="logoutBtn">Sign out</button></div></div>
+    <div class="topbar"><div><h1>Good afternoon 👋</h1><p>${state.unit.name} · ${state.club.name}</p></div><div class="top-actions">${unitPicker()}<button class="btn btn-ghost" id="logoutBtn">Sign out</button></div></div>
+    ${mobileUnitPicker()}
     <section class="grid stats">
       <div class="stat"><div class="label">Unit members</div><div class="value">${members.length}</div><div class="meta">Active roster</div></div>
       <div class="stat"><div class="label">Attendance</div><div class="value">${present}/${members.length||0}</div><div class="meta">Current demo meeting</div></div>
@@ -500,7 +545,8 @@ function dashboardView() {
 function meetingView() {
   return `${mobileTop()}<div class="meeting-page">
     <div class="back-row"><button class="btn btn-ghost" data-route="dashboard">← Dashboard</button><span>Meeting scoring</span></div>
-    <div class="topbar"><div><h1>Meeting · ${state.meeting?.date || 'Today'}</h1><p>${state.unit.name} · Tap each criterion to award or remove points.</p></div></div>
+    <div class="topbar"><div><h1>Meeting · ${state.meeting?.date || 'Today'}</h1><p>${state.unit.name} · Tap each criterion to award or remove points.</p></div><div class="top-actions">${unitPicker()}</div></div>
+    ${mobileUnitPicker()}
     <div class="score-legend">${scoreCategories.map(c=>`<span class="legend-pill">${c.name} ${c.points} pts</span>`).join('')}<span class="legend-pill">Bonus optional</span></div>
     <div id="scoreList">${state.members.map(scoreCard).join('')}</div>
     <div class="sticky-save"><button class="btn btn-primary" id="saveMeeting">Save meeting</button></div>
@@ -521,6 +567,7 @@ function renderApp() {
   app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():dashboardView()}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
+  ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(err.message || 'Unit could not be loaded.'); renderApp(); } }; });
   document.querySelectorAll('[data-presence]').forEach(btn=>btn.onclick=()=>togglePresence(btn.dataset.presence));
   document.querySelectorAll('[data-score]').forEach(btn=>btn.onclick=()=>toggleScore(btn.dataset.score,btn.dataset.key));
   const save = document.getElementById('saveMeeting'); if(save) save.onclick = ()=>saveMeeting(save);
@@ -540,7 +587,8 @@ async function saveMeeting(btn){
   const original = btn.textContent;
   btn.textContent = 'Saving…';
   try {
-    if(!state.user.unit_id) throw new Error('Choose or assign a unit before recording a meeting.');
+    const unitId = activeUnitId();
+    if(!unitId) throw new Error('Choose a unit before recording a meeting.');
     if(!state.categories?.filter(c=>!c.is_bonus).length) throw new Error('No active scoring criteria are configured for this club.');
 
     const meetingDate = state.meeting?.rawDate || localISODate();
@@ -550,7 +598,7 @@ async function saveMeeting(btn){
       const payload = [{
         club_id: state.user.club_id,
         club_year_id: state.clubYear?.id || null,
-        unit_id: state.user.unit_id,
+        unit_id: unitId,
         meeting_date: meetingDate,
         title: state.meeting?.title || 'Club Meeting'
       }];
@@ -560,11 +608,11 @@ async function saveMeeting(btn){
       });
       meetingId = created?.[0]?.id;
       if(!meetingId) {
-        const found = await sb(`meetings?unit_id=eq.${encodeURIComponent(state.user.unit_id)}&meeting_date=eq.${encodeURIComponent(meetingDate)}&select=id,meeting_date,title,unit_id&limit=1`, state.token);
+        const found = await sb(`meetings?unit_id=eq.${encodeURIComponent(unitId)}&meeting_date=eq.${encodeURIComponent(meetingDate)}&select=id,meeting_date,title,unit_id&limit=1`, state.token);
         meetingId = found?.[0]?.id;
       }
       if(!meetingId) throw new Error('The meeting could not be created.');
-      state.meeting = {...state.meeting,id:meetingId,unit_id:state.user.unit_id,meeting_date:meetingDate,rawDate:meetingDate,date:formatMeetingDate(meetingDate)};
+      state.meeting = {...state.meeting,id:meetingId,unit_id:unitId,meeting_date:meetingDate,rawDate:meetingDate,date:formatMeetingDate(meetingDate)};
     }
 
     const attendanceRows = state.members.map(m=>({
