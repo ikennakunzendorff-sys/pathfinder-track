@@ -237,13 +237,37 @@ const SUPABASE_URL = 'https://ddusmreyrqumzlbpdanz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tr1_Lur6n-7yq_ApNvyVxg_IysPKFto';
 const app = document.getElementById('app');
 
-const scoreCategories = [
+const defaultScoreCategories = [
   { key: 'punctuality', name: 'Punctuality', points: 10, icon: '⏱' },
   { key: 'uniform', name: 'Uniform', points: 10, icon: '◈' },
   { key: 'bible', name: 'Bible', points: 5, icon: '▣' },
-  { key: 'participation', name: 'Participation', points: 15, icon: '✦' },
+  { key: 'participation', name: 'Participation / Discipline', points: 15, icon: '✦' },
   { key: 'material', name: 'Material', points: 5, icon: '▤' },
 ];
+let scoreCategories = structuredClone(defaultScoreCategories);
+
+function categoryIcon(name='') {
+  const n = name.toLowerCase();
+  if(n.includes('punct')) return '⏱';
+  if(n.includes('uniform')) return '◈';
+  if(n.includes('bible')) return '▣';
+  if(n.includes('particip') || n.includes('discipline')) return '✦';
+  if(n.includes('material')) return '▤';
+  return '◆';
+}
+
+function localISODate(d=new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatMeetingDate(dateStr) {
+  if(!dateStr) return 'Today';
+  const [y,m,d] = dateStr.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
 
 const demoState = {
   mode: 'demo',
@@ -300,7 +324,7 @@ function loginView() {
     </section>
   </div>`;
 
-  document.getElementById('demoBtn').onclick = () => { state = structuredClone(demoState); route='dashboard'; renderApp(); };
+  document.getElementById('demoBtn').onclick = () => { scoreCategories = structuredClone(defaultScoreCategories); state = structuredClone(demoState); route='dashboard'; renderApp(); };
   document.getElementById('loginForm').onsubmit = async (e) => {
     e.preventDefault();
     const msg = document.getElementById('formMessage');
@@ -326,6 +350,28 @@ async function sb(path, token) {
   return res.json();
 }
 
+async function sbWrite(path, token, { method='POST', body, prefer='return=minimal' }={}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method,
+    headers:{
+      apikey:SUPABASE_KEY,
+      Authorization:`Bearer ${token}`,
+      Accept:'application/json',
+      'Content-Type':'application/json',
+      Prefer:prefer
+    },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  if(!res.ok) {
+    let detail = '';
+    try { const payload = await res.json(); detail = payload.message || payload.details || payload.hint || ''; } catch {}
+    throw new Error(detail || `Save failed (${res.status}).`);
+  }
+  if(res.status === 204) return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
 async function loadAuthenticatedState(token) {
   const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${token}` } });
   if(!userRes.ok) throw new Error('Your session could not be loaded.');
@@ -334,21 +380,67 @@ async function loadAuthenticatedState(token) {
   const profile = profiles[0];
   if(!profile) throw new Error('Your Pathfinder Track profile is not configured yet.');
   if(!profile.club_id) throw new Error('Your account is not assigned to a club yet.');
-  const [clubs, units, members, categories, meetings] = await Promise.all([
+
+  const today = localISODate();
+  const meetingFilter = profile.unit_id ? `&unit_id=eq.${encodeURIComponent(profile.unit_id)}` : '';
+  const [clubs, units, members, categories, meetings, clubYears] = await Promise.all([
     sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, token),
     profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name&order=name`, token),
     sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,class_levels(name)&active=eq.true&order=full_name`, token),
     sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,name,default_points,is_bonus,sort_order&order=sort_order`, token),
-    sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id&order=meeting_date.desc&limit=5`, token),
+    sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}${meetingFilter}&select=id,meeting_date,title,unit_id,club_year_id&order=meeting_date.desc&limit=10`, token),
+    sb(`club_years?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,label,start_date,end_date&order=start_date.desc&limit=1`, token),
   ]);
+
+  const liveCategories = categories
+    .filter(c=>!c.is_bonus)
+    .map(c=>({ id:c.id, key:c.id, name:c.name, points:c.default_points, icon:categoryIcon(c.name) }));
+  scoreCategories = liveCategories.length ? liveCategories : structuredClone(defaultScoreCategories);
+
+  const todayMeeting = meetings.find(m=>m.meeting_date === today && (!profile.unit_id || m.unit_id === profile.unit_id)) || null;
+  let attendance = [], scores = [];
+  if(todayMeeting) {
+    [attendance, scores] = await Promise.all([
+      sb(`attendance?meeting_id=eq.${encodeURIComponent(todayMeeting.id)}&select=member_id,present`, token),
+      sb(`meeting_scores?meeting_id=eq.${encodeURIComponent(todayMeeting.id)}&select=member_id,category_id,points_awarded,max_points_snapshot`, token),
+    ]);
+  }
+
+  const attendanceByMember = new Map(attendance.map(a=>[String(a.member_id),a]));
+  const scoresByMember = new Map();
+  for(const row of scores) {
+    const key = String(row.member_id);
+    if(!scoresByMember.has(key)) scoresByMember.set(key,new Map());
+    scoresByMember.get(key).set(String(row.category_id),row);
+  }
+
+  const mappedMembers = members.map(m=>{
+    const memberAttendance = attendanceByMember.get(String(m.id));
+    const memberScoreRows = scoresByMember.get(String(m.id));
+    const present = todayMeeting ? (memberAttendance ? memberAttendance.present : true) : true;
+    const scoreState = {};
+    for(const c of scoreCategories) {
+      if(todayMeeting && memberScoreRows?.size) {
+        scoreState[c.key] = (memberScoreRows.get(String(c.id))?.points_awarded || 0) > 0;
+      } else {
+        scoreState[c.key] = present;
+      }
+    }
+    return {id:m.id,full_name:m.full_name,class:m.class_levels?.name||'Class',grade:m.school_grade,unit_id:m.unit_id,present,scores:scoreState};
+  });
+
   state = {
     mode:'live', token,
     user:profile,
     club:clubs[0] || {name:'My Club'},
     unit: profile.unit_id ? (units[0] || {name:'My Unit'}) : {name:'All Units'},
-    members: members.map(m=>({id:m.id,full_name:m.full_name,class:m.class_levels?.name||'Class',grade:m.school_grade,present:true,scores:{}})),
+    members:mappedMembers,
     categories,
-    meetings
+    clubYear:clubYears[0] || null,
+    meetings,
+    meeting: todayMeeting
+      ? {...todayMeeting, date:formatMeetingDate(todayMeeting.meeting_date), rawDate:todayMeeting.meeting_date}
+      : {id:null, meeting_date:today, rawDate:today, date:formatMeetingDate(today), title:'Club Meeting', unit_id:profile.unit_id},
   };
 }
 
@@ -437,8 +529,84 @@ function renderApp() {
 function bindNavigation(){ document.querySelectorAll('[data-route]').forEach(el=>el.onclick=()=>{ route=el.dataset.route; renderApp(); }); }
 function togglePresence(id){ const m=state.members.find(x=>String(x.id)===String(id)); m.present=!m.present; if(!m.present) Object.keys(m.scores||{}).forEach(k=>m.scores[k]=false); else scoreCategories.forEach(c=>m.scores[c.key]=true); renderApp(); }
 function toggleScore(id,key){ const m=state.members.find(x=>String(x.id)===String(id)); if(!m.present) return; m.scores ||= {}; m.scores[key]=!m.scores[key]; renderApp(); }
-async function saveMeeting(btn){ btn.textContent = state.mode==='demo' ? 'Demo saved ✓' : 'MVP write-back comes next ✓'; btn.disabled=true; setTimeout(()=>{btn.disabled=false;btn.textContent='Save meeting';},1600); }
-function signOut(){ localStorage.removeItem('pt_access_token'); state=null; route='dashboard'; loginView(); }
+async function saveMeeting(btn){
+  if(state.mode==='demo') {
+    btn.textContent='Demo saved ✓'; btn.disabled=true;
+    setTimeout(()=>{btn.disabled=false;btn.textContent='Save meeting';},1400);
+    return;
+  }
+
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Saving…';
+  try {
+    if(!state.user.unit_id) throw new Error('Choose or assign a unit before recording a meeting.');
+    if(!state.categories?.filter(c=>!c.is_bonus).length) throw new Error('No active scoring criteria are configured for this club.');
+
+    const meetingDate = state.meeting?.rawDate || localISODate();
+    let meetingId = state.meeting?.id || null;
+
+    if(!meetingId) {
+      const payload = [{
+        club_id: state.user.club_id,
+        club_year_id: state.clubYear?.id || null,
+        unit_id: state.user.unit_id,
+        meeting_date: meetingDate,
+        title: state.meeting?.title || 'Club Meeting'
+      }];
+      const created = await sbWrite('meetings?on_conflict=unit_id,meeting_date', state.token, {
+        body:payload,
+        prefer:'resolution=merge-duplicates,return=representation'
+      });
+      meetingId = created?.[0]?.id;
+      if(!meetingId) {
+        const found = await sb(`meetings?unit_id=eq.${encodeURIComponent(state.user.unit_id)}&meeting_date=eq.${encodeURIComponent(meetingDate)}&select=id,meeting_date,title,unit_id&limit=1`, state.token);
+        meetingId = found?.[0]?.id;
+      }
+      if(!meetingId) throw new Error('The meeting could not be created.');
+      state.meeting = {...state.meeting,id:meetingId,unit_id:state.user.unit_id,meeting_date:meetingDate,rawDate:meetingDate,date:formatMeetingDate(meetingDate)};
+    }
+
+    const attendanceRows = state.members.map(m=>({
+      meeting_id:meetingId,
+      member_id:m.id,
+      present:!!m.present,
+      recorded_at:new Date().toISOString()
+    }));
+    await sbWrite('attendance?on_conflict=meeting_id,member_id', state.token, {
+      body:attendanceRows,
+      prefer:'resolution=merge-duplicates,return=minimal'
+    });
+
+    const dbCategories = state.categories.filter(c=>!c.is_bonus);
+    const scoreRows = [];
+    for(const m of state.members) {
+      for(const c of dbCategories) {
+        scoreRows.push({
+          meeting_id:meetingId,
+          member_id:m.id,
+          category_id:c.id,
+          max_points_snapshot:c.default_points,
+          points_awarded:m.present && m.scores?.[c.id] ? c.default_points : 0,
+          recorded_at:new Date().toISOString()
+        });
+      }
+    }
+    await sbWrite('meeting_scores?on_conflict=meeting_id,member_id,category_id', state.token, {
+      body:scoreRows,
+      prefer:'resolution=merge-duplicates,return=minimal'
+    });
+
+    btn.textContent='Saved ✓';
+    setTimeout(()=>{btn.disabled=false;btn.textContent=original;},1600);
+  } catch(err) {
+    console.error(err);
+    btn.textContent='Save failed — retry';
+    btn.disabled=false;
+    alert(err.message || 'The meeting could not be saved.');
+  }
+}
+function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=structuredClone(defaultScoreCategories); state=null; route='dashboard'; loginView(); }
 
 (async function boot(){
   const params = new URLSearchParams(location.search);
