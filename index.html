@@ -343,6 +343,23 @@ button { cursor: pointer; }
 .score-person-head small { display:block; margin-top:4px; color:var(--muted); }
 @media (max-width: 720px) { .sticky-save { bottom: 74px; } }
 
+.staff-page { max-width:1120px; }
+.staff-directory { display:grid; gap:9px; }
+.staff-row { display:grid; grid-template-columns:auto minmax(0,1.3fr) minmax(130px,.7fr) minmax(140px,.8fr) minmax(180px,1fr) auto; gap:12px; align-items:center; padding:13px 14px; border:1px solid var(--line); border-radius:16px; background:white; }
+.staff-row.inactive { opacity:.62; background:#f8f9f8; }
+.staff-main small, .staff-meta small { display:block; color:var(--muted); margin-top:3px; font-size:11px; }
+.staff-meta strong { font-size:12px; }
+.staff-access { display:inline-flex; align-items:center; width:max-content; padding:6px 9px; border-radius:999px; background:var(--forest-100); color:var(--forest-800); font-size:11px; font-weight:850; }
+.staff-access.viewer { background:#f1f2f1; color:#6f7773; }
+.staff-access.director { background:var(--amber-soft); color:#816329; }
+.staff-scope { display:grid; gap:12px; margin-top:4px; }
+.staff-class-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:12px; border:1px solid var(--line); border-radius:14px; background:#fafbf9; }
+.staff-check { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:750; color:var(--forest-900); }
+.staff-check input { width:16px; height:16px; }
+.staff-self { font-size:10px; font-weight:850; text-transform:uppercase; letter-spacing:.05em; color:var(--amber-700); margin-left:6px; }
+@media (max-width:980px){ .staff-row { grid-template-columns:auto minmax(0,1fr) minmax(120px,.6fr) auto; } .staff-row .staff-unit, .staff-row .staff-classes { grid-column:2/4; } }
+@media (max-width:720px){ .staff-row { grid-template-columns:auto minmax(0,1fr) auto; } .staff-row .staff-role, .staff-row .staff-unit, .staff-row .staff-classes { grid-column:2/4; } .staff-class-options { grid-template-columns:1fr 1fr; } }
+
   </style>
 </head>
 <body>
@@ -477,6 +494,43 @@ function brand() {
   return `<div class="brand"><div class="brand-mark">${iconPath()}</div><div class="brand-title">Pathfinder <span>Track</span></div></div>`;
 }
 
+
+function inviteSessionFromHash(){
+  if(!location.hash) return null;
+  const params=new URLSearchParams(location.hash.replace(/^#/,'').trim());
+  const accessToken=params.get('access_token');
+  const type=params.get('type');
+  const error=params.get('error_description') || params.get('error');
+  if(error) return {error};
+  if(accessToken && ['invite','recovery'].includes(type)) return {accessToken,type};
+  return null;
+}
+
+function passwordSetupView(accessToken,type='invite'){
+  app.innerHTML=`<div class="login-page shell">
+    <section class="hero">${brand()}<div class="hero-copy"><div class="eyebrow">${type==='invite'?'Invitation accepted':'Secure account'}</div><h1>Create your password.</h1><p>Finish setting up your Pathfinder Track account. Your club access has already been assigned by the director.</p></div><div class="hero-foot">Pathfinder Track · Secure activation</div></section>
+    <section class="login-wrap"><form class="login-card" id="passwordSetupForm"><div class="eyebrow">Account activation</div><h2>Set password</h2><p>Use at least 8 characters. A password manager is recommended.</p>
+      <div class="field"><label for="newPassword">New password</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"></div>
+      <div class="field"><label for="confirmPassword">Confirm password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Repeat your password"></div>
+      <button class="btn btn-primary" type="submit" id="setPasswordBtn">Activate account</button><div class="form-message" id="passwordSetupMessage"></div>
+    </form></section></div>`;
+  document.getElementById('passwordSetupForm').onsubmit=async e=>{
+    e.preventDefault(); const msg=document.getElementById('passwordSetupMessage'); const btn=document.getElementById('setPasswordBtn');
+    const password=document.getElementById('newPassword').value; const confirm=document.getElementById('confirmPassword').value;
+    if(password.length<8){ msg.textContent='Use at least 8 characters.'; return; }
+    if(password!==confirm){ msg.textContent='The passwords do not match.'; return; }
+    btn.disabled=true; btn.textContent='Activating…'; msg.textContent='';
+    try{
+      const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{method:'PUT',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({password})});
+      let payload={}; try{payload=await res.json();}catch{}
+      if(!res.ok) throw new Error(payload.msg||payload.message||payload.error_description||'Password could not be set.');
+      localStorage.setItem('pt_access_token',accessToken);
+      history.replaceState({},document.title,location.pathname+location.search);
+      await loadAuthenticatedState(accessToken); route='dashboard'; renderApp();
+    }catch(err){ console.error(err); msg.textContent=err.message||'Account activation failed.'; btn.disabled=false; btn.textContent='Activate account'; }
+  };
+}
+
 function loginView() {
   app.innerHTML = `<div class="login-page shell">
     <section class="hero">
@@ -552,17 +606,30 @@ async function sbWrite(path, token, { method='POST', body, prefer='return=minima
   return text ? JSON.parse(text) : null;
 }
 
+async function callEdgeFunction(name, body) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+    method:'POST',
+    headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${state.token}`, 'Content-Type':'application/json' },
+    body:JSON.stringify(body)
+  });
+  let payload={};
+  try { payload=await res.json(); } catch {}
+  if(!res.ok) throw new Error(payload.error || payload.message || `Request failed (${res.status}).`);
+  return payload;
+}
+
 async function loadAuthenticatedState(token) {
   const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${token}` } });
   if(!userRes.ok) throw new Error('Your session could not be loaded.');
   const authUser = await userRes.json();
-  const profiles = await sb(`profiles?id=eq.${encodeURIComponent(authUser.id)}&select=id,full_name,role,club_id,unit_id`, token);
+  const profiles = await sb(`profiles?id=eq.${encodeURIComponent(authUser.id)}&select=id,full_name,email,position_title,role,club_id,unit_id,active`, token);
   const profile = profiles[0];
   if(!profile) throw new Error('Your Pathfinder Track profile is not configured yet.');
+  if(profile.active===false) throw new Error('Your Pathfinder Track access is inactive. Contact your club director.');
   if(!profile.club_id) throw new Error('Your account is not assigned to a club yet.');
 
   const today = localISODate();
-  const [clubs, units, members, categories, meetings, clubYears, classLevels, requirements, requirementStatuses] = await Promise.all([
+  const [clubs, units, members, categories, meetings, clubYears, classLevels, requirements, requirementStatuses, staffProfiles, staffClassLinks] = await Promise.all([
     sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, token),
     profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name&order=name`, token),
     sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,class_levels(name)&order=full_name`, token),
@@ -572,6 +639,8 @@ async function loadAuthenticatedState(token) {
     sb(`class_levels?select=id,name,order_index&order=order_index`, token),
     sb(`requirements?select=id,class_level_id,code,title,description,category,sort_index,is_advanced&order=sort_index`, token),
     sb(`member_requirement_status?select=id,member_id,requirement_id,status,completed_at,signed_by,notes,updated_at`, token),
+    profile.role==='director' ? sb(`profiles?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,email,position_title,role,club_id,unit_id,active&order=full_name`, token) : Promise.resolve([]),
+    profile.role==='director' ? sb(`instructor_class_levels?select=profile_id,class_level_id`, token) : Promise.resolve([]),
   ]);
 
   const liveCategories = categories
@@ -599,6 +668,8 @@ async function loadAuthenticatedState(token) {
     classLevels,
     requirements,
     requirementStatuses,
+    staff:staffProfiles,
+    staffClassLinks,
     meetings,
     meeting:null,
   };
@@ -669,6 +740,7 @@ function sidebar() {
       <button class="${route==='meeting'?'active':''}" data-route="meeting">✓ Meeting</button>
       <button class="${route==='members'?'active':''}" data-route="members">♙ Members</button>
       <button class="${route==='classes'?'active':''}" data-route="classes">◫ Classes</button>
+      ${state.user.role==='director'?`<button class="${route==='staff'?'active':''}" data-route="staff">♜ Staff</button>`:''}
       <button>⚙ Settings</button>
     </nav>
     <div class="sidebar-spacer"></div>
@@ -677,7 +749,7 @@ function sidebar() {
 }
 
 function mobileTop(){ return `<div class="mobile-top">${brand()}<div class="avatar">${initials(state.user.full_name)}</div></div>`; }
-function bottomNav(){ return `<nav class="bottom-nav"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button></nav>`; }
+function bottomNav(){ const staff=state.user.role==='director'; return `<nav class="bottom-nav" style="grid-template-columns:repeat(${staff?5:4},1fr)"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${staff?`<button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button>`:''}</nav>`; }
 
 function dashboardView() {
   const members = state.members || [];
@@ -875,6 +947,136 @@ async function toggleMemberArchive() {
 }
 
 
+
+function staffRoleLabel(role){ return role==='director'?'Admin':role==='instructor'?'Instructor':'Viewer'; }
+function staffClassIds(profileId){ return (state.staffClassLinks||[]).filter(x=>String(x.profile_id)===String(profileId)).map(x=>String(x.class_level_id)); }
+function staffClassNames(profileId){ const ids=staffClassIds(profileId); return ids.map(className).filter(Boolean); }
+function staffTitle(person){ return person.position_title || (person.role==='director'?'Director':person.role==='instructor'?'Instructor':'Staff'); }
+
+function staffView(){
+  if(state.mode!=='live' || state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">Staff management is available to the club director.</div>`;
+  const staff=(state.staff||[]).slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||''));
+  const active=staff.filter(x=>x.active!==false).length;
+  const admins=staff.filter(x=>x.active!==false&&x.role==='director').length;
+  const instructors=staff.filter(x=>x.active!==false&&x.role==='instructor').length;
+  return `${mobileTop()}<div class="staff-page">
+    <div class="topbar"><div><div class="eyebrow">Leadership</div><h1>Staff / Diretoria</h1><p>Invite leaders, assign club roles and control access by unit and class.</p></div><div class="top-actions"><button class="btn btn-primary" id="addStaffBtn" style="width:auto">+ Add staff member</button></div></div>
+    <section class="members-summary"><div class="mini-stat"><span>Active staff</span><strong>${active}</strong></div><div class="mini-stat"><span>Admins</span><strong>${admins}</strong></div><div class="mini-stat"><span>Instructors</span><strong>${instructors}</strong></div><div class="mini-stat"><span>Total profiles</span><strong>${staff.length}</strong></div></section>
+    <section class="card"><div class="card-head"><div><h3>Club leadership</h3><p>Access is separate from the person's ministry title.</p></div></div><div class="card-body">
+      <div class="staff-directory">${staff.length?staff.map(staffRow).join(''):'<div class="member-empty">No staff profiles have been added yet.</div>'}</div>
+    </div></section>
+    ${staffEditorModal()}
+  </div>`;
+}
+
+function staffRow(p){
+  const classes=staffClassNames(p.id);
+  const isSelf=String(p.id)===String(state.user.id);
+  return `<div class="staff-row ${p.active===false?'inactive':''}">
+    <div class="member-avatar">${initials(p.full_name||p.email)}</div>
+    <div class="staff-main"><strong>${esc(p.full_name||p.email)}${isSelf?'<span class="staff-self">You</span>':''}</strong><small>${esc(p.email||'No email')}</small></div>
+    <div class="staff-role"><span class="staff-access ${esc(p.role)}">${esc(staffRoleLabel(p.role))}</span><small>${esc(staffTitle(p))}</small></div>
+    <div class="staff-meta staff-unit"><small>Unit</small><strong>${p.unit_id?esc(unitName(p.unit_id)):'—'}</strong></div>
+    <div class="staff-meta staff-classes"><small>Classes</small><strong>${classes.length?esc(classes.join(', ')):'—'}</strong></div>
+    <div><button class="btn btn-ghost" data-edit-staff="${p.id}">${p.active===false?'Review':'Edit'}</button></div>
+  </div>`;
+}
+
+function staffEditorModal(){
+  return `<div class="member-modal" id="staffModal" hidden><div class="member-modal-card">
+    <div class="member-modal-head"><div><div class="eyebrow">Leadership access</div><h2 id="staffModalTitle">Add staff member</h2></div><button class="icon-btn" type="button" id="closeStaffModal" aria-label="Close">×</button></div>
+    <form class="member-form" id="staffForm"><input type="hidden" id="staffId">
+      <div class="member-form-grid">
+        <div class="field full"><label for="staffName">Full name</label><input id="staffName" maxlength="120" required placeholder="Leader name"></div>
+        <div class="field full"><label for="staffEmail">Email</label><input id="staffEmail" type="email" required placeholder="leader@example.com"><div class="form-hint" id="staffEmailHint">New staff receive an invitation by email. Existing Pathfinder Track accounts are reused.</div></div>
+        <div class="field"><label for="staffTitle">Club role / title</label><input id="staffTitle" list="staffTitleOptions" maxlength="80" placeholder="e.g. Secretary"><datalist id="staffTitleOptions"><option value="Director"><option value="Associate Director"><option value="Secretary"><option value="Counselor"><option value="Instructor"><option value="Chaplain"><option value="Treasurer"></datalist></div>
+        <div class="field"><label for="staffRole">System access</label><select id="staffRole"><option value="director">Admin — whole club</option><option value="instructor" selected>Instructor — assigned scope</option><option value="viewer">Viewer — limited access</option></select></div>
+        <div class="field full staff-scope" id="staffScopeWrap">
+          <div class="field"><label for="staffUnit">Primary unit</label><select id="staffUnit"><option value="">No unit</option>${(state.units||[]).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select><div class="form-hint">Meeting access follows this unit.</div></div>
+          <div class="field"><label>Authorized classes</label><div class="staff-class-options">${(state.classLevels||[]).map(c=>`<label class="staff-check"><input type="checkbox" data-staff-class value="${c.id}"> ${esc(c.name)}</label>`).join('')}</div><div class="form-hint">Class-progress access can include multiple classes.</div></div>
+        </div>
+      </div>
+      <div class="form-message" id="staffFormMessage"></div>
+      <div class="member-form-actions"><button class="btn btn-ghost" type="button" id="staffActiveBtn" hidden>Deactivate access</button><div class="member-form-actions-right"><button class="btn btn-ghost" type="button" id="cancelStaffBtn">Cancel</button><button class="btn btn-primary" type="submit" id="saveStaffBtn" style="width:auto">Send invitation</button></div></div>
+    </form>
+  </div></div>`;
+}
+
+function updateStaffScopeUI(){
+  const role=document.getElementById('staffRole')?.value;
+  const wrap=document.getElementById('staffScopeWrap'); if(wrap) wrap.hidden=role!=='instructor';
+}
+
+function openStaffEditor(id=null){
+  const modal=document.getElementById('staffModal'); if(!modal) return;
+  const p=id?(state.staff||[]).find(x=>String(x.id)===String(id)):null;
+  const self=p && String(p.id)===String(state.user.id);
+  document.getElementById('staffModalTitle').textContent=p?'Edit staff member':'Add staff member';
+  document.getElementById('staffId').value=p?.id||'';
+  document.getElementById('staffName').value=p?.full_name||'';
+  const email=document.getElementById('staffEmail'); email.value=p?.email||''; email.readOnly=!!p;
+  document.getElementById('staffEmailHint').textContent=p?'Email belongs to the login account and is read-only here.':'New staff receive an invitation by email. Existing Pathfinder Track accounts are reused.';
+  document.getElementById('staffTitle').value=p?.position_title||'';
+  const role=document.getElementById('staffRole'); role.value=p?.role||'instructor'; role.disabled=!!self;
+  document.getElementById('staffUnit').value=p?.unit_id||'';
+  const selected=new Set(p?staffClassIds(p.id):[]);
+  document.querySelectorAll('[data-staff-class]').forEach(cb=>cb.checked=selected.has(String(cb.value)));
+  const activeBtn=document.getElementById('staffActiveBtn');
+  activeBtn.hidden=!p || !!self; activeBtn.disabled=false; activeBtn.textContent=p?.active===false?'Reactivate access':'Deactivate access';
+  const save=document.getElementById('saveStaffBtn'); save.disabled=false; save.textContent=p?'Save staff member':'Send invitation';
+  document.getElementById('staffFormMessage').textContent='';
+  updateStaffScopeUI(); modal.hidden=false; setTimeout(()=>document.getElementById('staffName')?.focus(),0);
+}
+function closeStaffEditor(){ const m=document.getElementById('staffModal'); if(m) m.hidden=true; }
+
+async function refreshStaffFromDb(){
+  if(state.user.role!=='director') return;
+  [state.staff,state.staffClassLinks]=await Promise.all([
+    sb(`profiles?club_id=eq.${encodeURIComponent(state.user.club_id)}&select=id,full_name,email,position_title,role,club_id,unit_id,active&order=full_name`,state.token),
+    sb(`instructor_class_levels?select=profile_id,class_level_id`,state.token)
+  ]);
+}
+
+async function saveStaffForm(e){
+  e.preventDefault();
+  const msg=document.getElementById('staffFormMessage'); const btn=document.getElementById('saveStaffBtn');
+  const id=document.getElementById('staffId').value;
+  const fullName=document.getElementById('staffName').value.trim();
+  const email=document.getElementById('staffEmail').value.trim().toLowerCase();
+  const positionTitle=document.getElementById('staffTitle').value.trim();
+  const current=(state.staff||[]).find(x=>String(x.id)===String(id));
+  const isSelf=current && String(current.id)===String(state.user.id);
+  const role=isSelf?'director':document.getElementById('staffRole').value;
+  const unitId=role==='instructor'?(document.getElementById('staffUnit').value||null):null;
+  const classIds=role==='instructor'?Array.from(document.querySelectorAll('[data-staff-class]:checked')).map(x=>x.value):[];
+  if(!fullName || !email){ msg.textContent='Full name and email are required.'; return; }
+  if(role==='instructor' && !unitId && !classIds.length){ msg.textContent='Give an instructor a unit or at least one authorized class.'; return; }
+  btn.disabled=true; btn.textContent=id?'Saving…':'Sending…'; msg.textContent='';
+  try{
+    if(!id){
+      const result=await callEdgeFunction('staff-invite',{email,full_name:fullName,position_title:positionTitle,role,unit_id:unitId,class_level_ids:classIds});
+      await refreshStaffFromDb(); closeStaffEditor(); renderApp();
+      alert(result.invited?'Invitation sent. The staff member can use the email link to activate access.':'Existing Pathfinder Track account added to this club.');
+      return;
+    }
+    await sbWrite(`profiles?id=eq.${encodeURIComponent(id)}`,state.token,{method:'PATCH',body:{full_name:fullName,position_title:positionTitle||null,role,unit_id:unitId},prefer:'return=representation'});
+    await sbWrite(`instructor_class_levels?profile_id=eq.${encodeURIComponent(id)}`,state.token,{method:'DELETE',prefer:'return=minimal'});
+    if(role==='instructor' && classIds.length){
+      await sbWrite('instructor_class_levels',state.token,{body:classIds.map(class_level_id=>({profile_id:id,class_level_id})),prefer:'return=minimal'});
+    }
+    await refreshStaffFromDb(); closeStaffEditor(); renderApp();
+  }catch(err){ console.error(err); msg.textContent=err.message||'Staff member could not be saved.'; btn.disabled=false; btn.textContent=id?'Save staff member':'Send invitation'; }
+}
+
+async function toggleStaffActive(){
+  const id=document.getElementById('staffId')?.value; if(!id || String(id)===String(state.user.id)) return;
+  const p=(state.staff||[]).find(x=>String(x.id)===String(id)); if(!p) return;
+  const next=p.active===false; const btn=document.getElementById('staffActiveBtn'); btn.disabled=true; btn.textContent=next?'Reactivating…':'Deactivating…';
+  try{ await sbWrite(`profiles?id=eq.${encodeURIComponent(id)}`,state.token,{method:'PATCH',body:{active:next},prefer:'return=representation'}); await refreshStaffFromDb(); closeStaffEditor(); renderApp(); }
+  catch(err){ console.error(err); document.getElementById('staffFormMessage').textContent=err.message||'Access status could not be updated.'; btn.disabled=false; btn.textContent=next?'Reactivate access':'Deactivate access'; }
+}
+
+
 function classesView() {
   if(!selectedClassId) return classesOverviewView();
   if(!selectedClassMemberId) return classRosterView();
@@ -1034,7 +1236,7 @@ function scoreCard(m) {
 
 function renderApp() {
   if(!state) return loginView();
-  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():dashboardView()))}</main></div>${bottomNav()}`;
+  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='staff'?staffView():dashboardView())))}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
   ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(err.message || 'Unit could not be loaded.'); renderApp(); } }; });
@@ -1055,6 +1257,14 @@ function renderApp() {
   document.querySelectorAll('[data-open-class-member]').forEach(btn=>btn.onclick=()=>{ selectedClassMemberId=btn.dataset.openClassMember; renderApp(); });
   document.querySelectorAll('[data-class-back]').forEach(btn=>btn.onclick=()=>{ if(btn.dataset.classBack==='all'){selectedClassId=null;selectedClassMemberId=null;} else selectedClassMemberId=null; renderApp(); });
   document.querySelectorAll('[data-req-status]').forEach(btn=>btn.onclick=()=>setRequirementStatus(btn.dataset.memberId,btn.dataset.requirementId,btn.dataset.reqStatus,btn));
+  const addStaff=document.getElementById('addStaffBtn'); if(addStaff) addStaff.onclick=()=>openStaffEditor();
+  document.querySelectorAll('[data-edit-staff]').forEach(btn=>btn.onclick=()=>openStaffEditor(btn.dataset.editStaff));
+  const staffRole=document.getElementById('staffRole'); if(staffRole) staffRole.onchange=updateStaffScopeUI;
+  const staffForm=document.getElementById('staffForm'); if(staffForm) staffForm.onsubmit=saveStaffForm;
+  const closeStaff=document.getElementById('closeStaffModal'); if(closeStaff) closeStaff.onclick=closeStaffEditor;
+  const cancelStaff=document.getElementById('cancelStaffBtn'); if(cancelStaff) cancelStaff.onclick=closeStaffEditor;
+  const staffActive=document.getElementById('staffActiveBtn'); if(staffActive) staffActive.onclick=toggleStaffActive;
+  const staffModal=document.getElementById('staffModal'); if(staffModal) staffModal.onclick=e=>{ if(e.target===staffModal) closeStaffEditor(); };
   if(route==='members') filterMemberDirectory();
 }
 
@@ -1142,6 +1352,12 @@ async function saveMeeting(btn){
 function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=structuredClone(defaultScoreCategories); state=null; route='dashboard'; selectedClassId=null; selectedClassMemberId=null; loginView(); }
 
 (async function boot(){
+  const inviteSession=inviteSessionFromHash();
+  if(inviteSession?.error){
+    app.innerHTML=`<div class="loading">Invitation error: ${esc(inviteSession.error)}</div>`;
+    return;
+  }
+  if(inviteSession?.accessToken){ passwordSetupView(inviteSession.accessToken,inviteSession.type); return; }
   const params = new URLSearchParams(location.search);
   if(params.get('demo') === '1') {
     state = structuredClone(demoState);
