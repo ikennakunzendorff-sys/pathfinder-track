@@ -437,7 +437,16 @@ function esc(value='') { return String(value ?? '').replace(/[&<>"']/g, ch=>({ '
 function gradeClassOrder(grade){ return ({5:1,6:2,7:3,8:4,9:5,10:6})[Number(grade)] || null; }
 function classForGrade(grade){ const order=gradeClassOrder(grade); return order ? state?.classLevels?.find(c=>Number(c.order_index)===order) || null : null; }
 function unitName(unitId){ return state?.units?.find(u=>String(u.id)===String(unitId))?.name || 'No unit'; }
-function availableClassLevels(){ return state?.classLevels?.length ? state.classLevels : demoClassLevels; }
+function availableClassLevels(){
+  const levels = state?.classLevels?.length ? state.classLevels : demoClassLevels;
+  if(state?.mode==='live' && state?.user?.role==='instructor') {
+    const allowed = new Set((state.staffClassLinks||[])
+      .filter(link=>String(link.profile_id)===String(state.user.id))
+      .map(link=>String(link.class_level_id)));
+    return levels.filter(cl=>allowed.has(String(cl.id)));
+  }
+  return levels;
+}
 function className(classId){ return availableClassLevels().find(c=>String(c.id)===String(classId))?.name || 'No class'; }
 function visibleMembers(){
   if(state?.mode==='demo') return (state.members||[]).map(m=>({...m,current_class_level_id:demoClassLevels.find(c=>c.name===m.class)?.id||null,active:true,unit_id:'demo-unit'}));
@@ -640,7 +649,7 @@ async function loadAuthenticatedState(token) {
     sb(`requirements?select=id,class_level_id,code,title,description,category,sort_index,is_advanced&order=sort_index`, token),
     sb(`member_requirement_status?select=id,member_id,requirement_id,status,completed_at,signed_by,notes,updated_at`, token),
     profile.role==='director' ? sb(`profiles?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,email,position_title,role,club_id,unit_id,active&order=full_name`, token) : Promise.resolve([]),
-    profile.role==='director' ? sb(`instructor_class_levels?select=profile_id,class_level_id`, token) : Promise.resolve([]),
+    ['director','instructor'].includes(profile.role) ? sb(`instructor_class_levels?select=profile_id,class_level_id`, token) : Promise.resolve([]),
   ]);
 
   const liveCategories = categories
@@ -741,7 +750,7 @@ function sidebar() {
       <button class="${route==='members'?'active':''}" data-route="members">♙ Members</button>
       <button class="${route==='classes'?'active':''}" data-route="classes">◫ Classes</button>
       ${state.user.role==='director'?`<button class="${route==='staff'?'active':''}" data-route="staff">♜ Staff</button>`:''}
-      <button>⚙ Settings</button>
+      ${state.user.role==='director'?'<button>⚙ Settings</button>':''}
     </nav>
     <div class="sidebar-spacer"></div>
     <div class="profile-mini"><div class="avatar">${initials(state.user.full_name)}</div><div><strong>${state.user.full_name}</strong><small>${state.user.role}</small></div></div>
@@ -763,7 +772,7 @@ function dashboardView() {
     ${mobileUnitPicker()}
     <section class="grid stats">
       <div class="stat"><div class="label">Unit members</div><div class="value">${members.length}</div><div class="meta">Active roster</div></div>
-      <div class="stat"><div class="label">Attendance</div><div class="value">${present}/${members.length||0}</div><div class="meta">Current demo meeting</div></div>
+      <div class="stat"><div class="label">Attendance</div><div class="value">${present}/${members.length||0}</div><div class="meta">${state.mode==='demo'?'Demo meeting':'Current meeting'}</div></div>
       <div class="stat"><div class="label">Merit score</div><div class="value">${scorePct}%</div><div class="meta">${totalPoints} pts earned</div></div>
       <div class="stat"><div class="label">Class progress</div><div class="value">${classPct}%</div><div class="meta">Core requirements</div></div>
     </section>
@@ -1361,7 +1370,7 @@ function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=
   const params = new URLSearchParams(location.search);
   if(params.get('demo') === '1') {
     state = structuredClone(demoState);
-    route = ['meeting','members'].includes(params.get('view')) ? params.get('view') : 'dashboard';
+    route = ['meeting','members','classes'].includes(params.get('view')) ? params.get('view') : 'dashboard';
     renderApp();
   } else {
     const token = localStorage.getItem('pt_access_token');
@@ -1371,7 +1380,11 @@ function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=
       catch { localStorage.removeItem('pt_access_token'); loginView(); }
     } else loginView();
   }
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  if('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations=>{
+      registrations.forEach(registration=>registration.unregister());
+    }).catch(()=>{});
+  }
 })();
 
   </script>
