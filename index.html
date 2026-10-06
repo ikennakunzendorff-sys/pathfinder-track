@@ -360,6 +360,34 @@ button { cursor: pointer; }
 @media (max-width:980px){ .staff-row { grid-template-columns:auto minmax(0,1fr) minmax(120px,.6fr) auto; } .staff-row .staff-unit, .staff-row .staff-classes { grid-column:2/4; } }
 @media (max-width:720px){ .staff-row { grid-template-columns:auto minmax(0,1fr) auto; } .staff-row .staff-role, .staff-row .staff-unit, .staff-row .staff-classes { grid-column:2/4; } .staff-class-options { grid-template-columns:1fr 1fr; } }
 
+.units-page { max-width:1120px; }
+.unit-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.unit-card { background:white; border:1px solid var(--line); border-radius:22px; padding:18px; box-shadow:0 8px 26px rgba(23,63,50,.045); display:grid; gap:14px; }
+.unit-card.inactive { opacity:.68; background:#f8f9f7; }
+.unit-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.unit-card h3 { margin:0; font-size:18px; letter-spacing:-.025em; }
+.unit-card-sub { color:var(--muted); font-size:11px; margin-top:5px; }
+.unit-metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.unit-metric { background:#f7f9f7; border-radius:13px; padding:10px; }
+.unit-metric span { display:block; color:var(--muted); font-size:9px; font-weight:850; text-transform:uppercase; letter-spacing:.05em; }
+.unit-metric strong { display:block; margin-top:4px; font-size:17px; }
+.unit-counselors { min-height:42px; }
+.unit-counselors small { display:block; color:var(--muted); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; margin-bottom:7px; }
+.unit-counselor-list { display:flex; gap:6px; flex-wrap:wrap; }
+.unit-counselor-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:999px; background:var(--forest-100); color:var(--forest-800); font-size:10px; font-weight:800; }
+.unit-progress-row { display:grid; gap:7px; }
+.unit-progress-label { display:flex; justify-content:space-between; gap:10px; font-size:11px; color:var(--muted); }
+.unit-progress-label strong { color:var(--forest-800); }
+.unit-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; padding-top:2px; }
+.unit-last-meeting { color:var(--muted); font-size:10px; }
+.unit-counselor-options { display:grid; gap:8px; padding:12px; border:1px solid var(--line); border-radius:14px; background:#fafbf9; max-height:230px; overflow:auto; }
+.unit-counselor-option { display:flex; align-items:flex-start; gap:9px; font-size:12px; color:var(--forest-900); }
+.unit-counselor-option input { width:16px; height:16px; margin-top:1px; }
+.unit-counselor-option strong { display:block; }
+.unit-counselor-option small { display:block; color:var(--muted); margin-top:2px; }
+@media (max-width:900px){ .unit-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:600px){ .unit-grid { grid-template-columns:1fr; } .unit-metrics { grid-template-columns:repeat(3,1fr); } }
+
   </style>
 </head>
 <body>
@@ -493,9 +521,11 @@ function formatShortDate(value){
 function maxScore(){ return scoreCategories.reduce((a,c)=>a+c.points,0); }
 function memberPoints(m){ if(!m.present) return 0; return scoreCategories.reduce((sum,c)=>sum+(m.scores?.[c.key] ? c.points : 0),0); }
 function activeUnitId(){ return state?.selectedUnitId || state?.user?.unit_id || null; }
+function activeUnits(){ return (state?.units||[]).filter(u=>u.active!==false); }
 function unitPicker(id='unitSelect'){
-  if(state?.mode!=='live' || state?.user?.role!=='director' || !state?.units?.length) return '';
-  return `<label class="unit-picker"><span>Unit</span><select class="unit-select" id="${id}">${state.units.map(u=>`<option value="${u.id}" ${String(u.id)===String(activeUnitId())?'selected':''}>${esc(u.name)}</option>`).join('')}</select></label>`;
+  const units=activeUnits();
+  if(state?.mode!=='live' || state?.user?.role!=='director' || !units.length) return '';
+  return `<label class="unit-picker"><span>Unit</span><select class="unit-select" id="${id}">${units.map(u=>`<option value="${u.id}" ${String(u.id)===String(activeUnitId())?'selected':''}>${esc(u.name)}</option>`).join('')}</select></label>`;
 }
 function mobileUnitPicker(){ const picker=unitPicker('unitSelectMobile'); return picker ? `<div class="mobile-unit-picker">${picker}</div>` : ''; }
 
@@ -640,7 +670,7 @@ async function loadAuthenticatedState(token) {
   const today = localISODate();
   const [clubs, units, members, categories, meetings, clubYears, classLevels, requirements, requirementStatuses, staffProfiles, staffClassLinks] = await Promise.all([
     sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, token),
-    profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name&order=name`, token),
+    profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name,active,created_at`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,active,created_at&order=name`, token),
     sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,class_levels(name)&order=full_name`, token),
     sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,name,default_points,is_bonus,sort_order&order=sort_order`, token),
     sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id,club_year_id&order=meeting_date.desc&limit=50`, token),
@@ -658,9 +688,10 @@ async function loadAuthenticatedState(token) {
   scoreCategories = liveCategories.length ? liveCategories : structuredClone(defaultScoreCategories);
 
   const storedUnitId = localStorage.getItem('pt_unit_id');
+  const selectableUnits = profile.role==='director' ? units.filter(u=>u.active!==false) : units;
   const selectedUnitId = profile.unit_id
-    || (units.some(u=>String(u.id)===String(storedUnitId)) ? storedUnitId : null)
-    || units[0]?.id
+    || (selectableUnits.some(u=>String(u.id)===String(storedUnitId)) ? storedUnitId : null)
+    || selectableUnits[0]?.id
     || null;
 
   state = {
@@ -749,6 +780,7 @@ function sidebar() {
       <button class="${route==='meeting'?'active':''}" data-route="meeting">✓ Meeting</button>
       <button class="${route==='members'?'active':''}" data-route="members">♙ Members</button>
       <button class="${route==='classes'?'active':''}" data-route="classes">◫ Classes</button>
+      ${state.user.role==='director'?`<button class="${route==='units'?'active':''}" data-route="units">◇ Units</button>`:''}
       ${state.user.role==='director'?`<button class="${route==='staff'?'active':''}" data-route="staff">♜ Staff</button>`:''}
       ${state.user.role==='director'?'<button>⚙ Settings</button>':''}
     </nav>
@@ -758,7 +790,7 @@ function sidebar() {
 }
 
 function mobileTop(){ return `<div class="mobile-top">${brand()}<div class="avatar">${initials(state.user.full_name)}</div></div>`; }
-function bottomNav(){ const staff=state.user.role==='director'; return `<nav class="bottom-nav" style="grid-template-columns:repeat(${staff?5:4},1fr)"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${staff?`<button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button>`:''}</nav>`; }
+function bottomNav(){ const admin=state.user.role==='director'; return `<nav class="bottom-nav" style="grid-template-columns:repeat(${admin?6:4},1fr)"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button>`:''}</nav>`; }
 
 function dashboardView() {
   const members = state.members || [];
@@ -856,7 +888,7 @@ function memberEditorModal() {
           <div class="field full"><label for="memberName">Full name</label><input id="memberName" maxlength="120" required placeholder="Pathfinder name"></div>
           <div class="field"><label for="memberGrade">School grade</label><select id="memberGrade" required><option value="">Select grade</option>${Array.from({length:12},(_,i)=>i+1).map(g=>`<option value="${g}">Grade ${g}</option>`).join('')}</select></div>
           <div class="field"><label for="memberClass">Pathfinder class</label><select id="memberClass"><option value="">Select class</option>${(state.classLevels||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="form-hint" id="classSuggestion">Select a grade to suggest a class.</div></div>
-          <div class="field full"><label for="memberUnit">Unit</label><select id="memberUnit" required><option value="">Select unit</option>${(state.units||[]).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select></div>
+          <div class="field full"><label for="memberUnit">Unit</label><select id="memberUnit" required><option value="">Select unit</option>${activeUnits().map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select></div>
         </div>
         <div class="form-message" id="memberFormMessage"></div>
         <div class="member-form-actions"><button class="btn btn-ghost" type="button" id="archiveMemberBtn" hidden>Archive Pathfinder</button><div class="member-form-actions-right"><button class="btn btn-ghost" type="button" id="cancelMemberBtn">Cancel</button><button class="btn btn-primary" type="submit" id="saveMemberBtn" style="width:auto">Save Pathfinder</button></div></div>
@@ -957,6 +989,144 @@ async function toggleMemberArchive() {
 
 
 
+function unitMembers(unitId,activeOnly=true){
+  return (state.allMembers||[]).filter(m=>String(m.unit_id)===String(unitId) && (!activeOnly || m.active!==false));
+}
+function unitCounselors(unitId,activeOnly=true){
+  return (state.staff||[]).filter(p=>p.role==='instructor' && String(p.unit_id)===String(unitId) && (!activeOnly || p.active!==false));
+}
+function unitLastMeeting(unitId){ return (state.meetings||[]).find(m=>String(m.unit_id)===String(unitId)) || null; }
+function unitProgress(unitId){ return unitClassProgress(unitMembers(unitId,true)); }
+
+function unitsView(){
+  if(state.mode!=='live' || state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">Unit management is available to the club director.</div>`;
+  const units=(state.units||[]).slice().sort((a,b)=>(a.active===false)-(b.active===false)||(a.name||'').localeCompare(b.name||''));
+  const activeCount=units.filter(u=>u.active!==false).length;
+  const archivedCount=units.length-activeCount;
+  const assignedMembers=(state.allMembers||[]).filter(m=>m.active!==false&&m.unit_id).length;
+  const assignedCounselors=(state.staff||[]).filter(p=>p.active!==false&&p.role==='instructor'&&p.unit_id).length;
+  return `${mobileTop()}<div class="units-page">
+    <div class="topbar"><div><div class="eyebrow">Club structure</div><h1>Units / Unidades</h1><p>Create units, assign counselors and review each unit's roster and class progress.</p></div><div class="top-actions"><button class="btn btn-primary" id="addUnitBtn" style="width:auto">+ Add unit</button></div></div>
+    <div class="mobile-unit-picker"><button class="btn btn-primary" id="addUnitBtnMobile" style="width:100%">+ Add unit</button></div>
+    <section class="members-summary"><div class="mini-stat"><span>Active units</span><strong>${activeCount}</strong></div><div class="mini-stat"><span>Archived</span><strong>${archivedCount}</strong></div><div class="mini-stat"><span>Assigned Pathfinders</span><strong>${assignedMembers}</strong></div><div class="mini-stat"><span>Counselors</span><strong>${assignedCounselors}</strong></div></section>
+    <section class="unit-grid">${units.length?units.map(unitCard).join(''):'<div class="member-empty">No units have been created yet.</div>'}</section>
+    ${unitEditorModal()}
+  </div>`;
+}
+
+function unitCard(u){
+  const members=unitMembers(u.id,true);
+  const counselors=unitCounselors(u.id,true);
+  const progress=unitProgress(u.id);
+  const classCount=new Set(members.filter(m=>m.current_class_level_id).map(m=>String(m.current_class_level_id))).size;
+  const last=unitLastMeeting(u.id);
+  return `<article class="unit-card ${u.active===false?'inactive':''}">
+    <div class="unit-card-head"><div><h3>${esc(u.name)}</h3><div class="unit-card-sub">${members.length} active Pathfinder${members.length===1?'':'s'}</div></div><span class="status-pill ${u.active===false?'inactive':''}">${u.active===false?'Archived':'Active'}</span></div>
+    <div class="unit-metrics"><div class="unit-metric"><span>Members</span><strong>${members.length}</strong></div><div class="unit-metric"><span>Classes</span><strong>${classCount}</strong></div><div class="unit-metric"><span>Progress</span><strong>${progress}%</strong></div></div>
+    <div class="unit-progress-row"><div class="unit-progress-label"><span>Average core class progress</span><strong>${progress}%</strong></div><div class="progress"><span style="width:${progress}%"></span></div></div>
+    <div class="unit-counselors"><small>Counselors</small><div class="unit-counselor-list">${counselors.length?counselors.map(p=>`<span class="unit-counselor-chip">${initials(p.full_name)} ${esc(p.full_name)}</span>`).join(''):'<span class="unit-last-meeting">No counselor assigned</span>'}</div></div>
+    <div class="unit-footer"><span class="unit-last-meeting">${last?`Last meeting ${esc(formatMeetingDate(last.meeting_date))}`:'No meetings recorded'}</span><button class="btn btn-ghost" data-edit-unit="${u.id}">${u.active===false?'Review':'Edit'}</button></div>
+  </article>`;
+}
+
+function unitEditorModal(){
+  const instructors=(state.staff||[]).filter(p=>p.role==='instructor'&&p.active!==false).sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||''));
+  return `<div class="member-modal" id="unitModal" hidden><div class="member-modal-card">
+    <div class="member-modal-head"><div><div class="eyebrow">Unit setup</div><h2 id="unitModalTitle">Add unit</h2></div><button class="icon-btn" type="button" id="closeUnitModal" aria-label="Close">×</button></div>
+    <form class="member-form" id="unitForm"><input type="hidden" id="unitId">
+      <div class="member-form-grid">
+        <div class="field full"><label for="unitNameInput">Unit name</label><input id="unitNameInput" maxlength="100" required placeholder="e.g. Guerreiras Valentes"><div class="form-hint">Unit names must be unique inside this club.</div></div>
+        <div class="field full"><label>Counselors / instructors</label><div class="unit-counselor-options">${instructors.length?instructors.map(p=>`<label class="unit-counselor-option"><input type="checkbox" data-unit-counselor value="${p.id}"><span><strong>${esc(p.full_name||p.email)}</strong><small>${p.unit_id?`Currently: ${esc(unitName(p.unit_id))}`:'No unit assigned'}</small></span></label>`).join(''):'<div class="form-hint">No active instructors are available yet. Add them in Staff first.</div>'}</div><div class="form-hint">Selecting a counselor already assigned elsewhere will move that person's primary unit.</div></div>
+      </div>
+      <div class="form-message" id="unitFormMessage"></div>
+      <div class="member-form-actions"><button class="btn btn-ghost" type="button" id="unitActiveBtn" hidden>Archive unit</button><div class="member-form-actions-right"><button class="btn btn-ghost" type="button" id="cancelUnitBtn">Cancel</button><button class="btn btn-primary" type="submit" id="saveUnitBtn" style="width:auto">Create unit</button></div></div>
+    </form>
+  </div></div>`;
+}
+
+function openUnitEditor(id=null){
+  const modal=document.getElementById('unitModal'); if(!modal) return;
+  const u=id?(state.units||[]).find(x=>String(x.id)===String(id)):null;
+  document.getElementById('unitModalTitle').textContent=u?'Edit unit':'Add unit';
+  document.getElementById('unitId').value=u?.id||'';
+  document.getElementById('unitNameInput').value=u?.name||'';
+  const selected=new Set(u?unitCounselors(u.id,false).map(p=>String(p.id)):[]);
+  document.querySelectorAll('[data-unit-counselor]').forEach(cb=>cb.checked=selected.has(String(cb.value)));
+  const status=document.getElementById('unitActiveBtn'); status.hidden=!u; status.disabled=false; status.textContent=u?.active===false?'Reactivate unit':'Archive unit';
+  const save=document.getElementById('saveUnitBtn'); save.disabled=false; save.textContent=u?'Save unit':'Create unit';
+  document.getElementById('unitFormMessage').textContent='';
+  modal.hidden=false; setTimeout(()=>document.getElementById('unitNameInput')?.focus(),0);
+}
+function closeUnitEditor(){ const modal=document.getElementById('unitModal'); if(modal) modal.hidden=true; }
+
+async function refreshUnitsFromDb(){
+  state.units=await sb(`units?club_id=eq.${encodeURIComponent(state.user.club_id)}&select=id,name,active,created_at&order=name`,state.token);
+  const selectable=activeUnits();
+  if(!selectable.some(u=>String(u.id)===String(state.selectedUnitId))){
+    state.selectedUnitId=selectable[0]?.id||null;
+    if(state.selectedUnitId) localStorage.setItem('pt_unit_id',state.selectedUnitId); else localStorage.removeItem('pt_unit_id');
+  }
+  state.unit=state.units.find(u=>String(u.id)===String(state.selectedUnitId))||{name:'No Unit'};
+  await loadSelectedUnit();
+}
+
+async function saveUnitForm(e){
+  e.preventDefault();
+  if(state.user.role!=='director') return;
+  const msg=document.getElementById('unitFormMessage'); const btn=document.getElementById('saveUnitBtn');
+  const id=document.getElementById('unitId').value;
+  const name=document.getElementById('unitNameInput').value.trim();
+  const selectedCounselors=Array.from(document.querySelectorAll('[data-unit-counselor]:checked')).map(x=>String(x.value));
+  if(name.length<2){msg.textContent='Enter a unit name.';return;}
+  const duplicate=(state.units||[]).find(u=>String(u.id)!==String(id)&&String(u.name||'').trim().toLowerCase()===name.toLowerCase());
+  if(duplicate){msg.textContent='Another unit already uses this name.';return;}
+  btn.disabled=true; btn.textContent='Saving…'; msg.textContent='';
+  try{
+    let unitId=id;
+    if(id){
+      await sbWrite(`units?id=eq.${encodeURIComponent(id)}`,state.token,{method:'PATCH',body:{name},prefer:'return=representation'});
+    }else{
+      const created=await sbWrite('units',state.token,{body:[{club_id:state.user.club_id,name,active:true}],prefer:'return=representation'});
+      unitId=created?.[0]?.id;
+      if(!unitId) throw new Error('The unit could not be created.');
+    }
+    const activeInstructors=(state.staff||[]).filter(p=>p.role==='instructor'&&p.active!==false);
+    for(const p of activeInstructors){
+      const isSelected=selectedCounselors.includes(String(p.id));
+      const currentlyHere=String(p.unit_id||'')===String(unitId);
+      if(isSelected && !currentlyHere){
+        await sbWrite(`profiles?id=eq.${encodeURIComponent(p.id)}`,state.token,{method:'PATCH',body:{unit_id:unitId},prefer:'return=representation'});
+      }else if(!isSelected && currentlyHere){
+        await sbWrite(`profiles?id=eq.${encodeURIComponent(p.id)}`,state.token,{method:'PATCH',body:{unit_id:null},prefer:'return=representation'});
+      }
+    }
+    await refreshStaffFromDb();
+    await refreshUnitsFromDb();
+    closeUnitEditor(); renderApp();
+  }catch(err){console.error(err);msg.textContent=err.message||'Unit could not be saved.';btn.disabled=false;btn.textContent=id?'Save unit':'Create unit';}
+}
+
+async function toggleUnitActive(){
+  const id=document.getElementById('unitId')?.value; if(!id) return;
+  const u=(state.units||[]).find(x=>String(x.id)===String(id)); if(!u) return;
+  const next=u.active===false;
+  const msg=document.getElementById('unitFormMessage'); const btn=document.getElementById('unitActiveBtn');
+  if(!next){
+    const memberCount=unitMembers(id,true).length;
+    const counselorCount=unitCounselors(id,true).length;
+    if(memberCount||counselorCount){
+      msg.textContent=`Reassign ${memberCount} active Pathfinder${memberCount===1?'':'s'} and ${counselorCount} counselor${counselorCount===1?'':'s'} before archiving this unit.`;
+      return;
+    }
+  }
+  btn.disabled=true; btn.textContent=next?'Reactivating…':'Archiving…'; msg.textContent='';
+  try{
+    await sbWrite(`units?id=eq.${encodeURIComponent(id)}`,state.token,{method:'PATCH',body:{active:next},prefer:'return=representation'});
+    await refreshUnitsFromDb(); closeUnitEditor(); renderApp();
+  }catch(err){console.error(err);msg.textContent=err.message||'Unit status could not be updated.';btn.disabled=false;btn.textContent=next?'Reactivate unit':'Archive unit';}
+}
+
+
 function staffRoleLabel(role){ return role==='director'?'Admin':role==='instructor'?'Instructor':'Viewer'; }
 function staffClassIds(profileId){ return (state.staffClassLinks||[]).filter(x=>String(x.profile_id)===String(profileId)).map(x=>String(x.class_level_id)); }
 function staffClassNames(profileId){ const ids=staffClassIds(profileId); return ids.map(className).filter(Boolean); }
@@ -1001,7 +1171,7 @@ function staffEditorModal(){
         <div class="field"><label for="staffTitle">Club role / title</label><input id="staffTitle" list="staffTitleOptions" maxlength="80" placeholder="e.g. Secretary"><datalist id="staffTitleOptions"><option value="Director"><option value="Associate Director"><option value="Secretary"><option value="Counselor"><option value="Instructor"><option value="Chaplain"><option value="Treasurer"></datalist></div>
         <div class="field"><label for="staffRole">System access</label><select id="staffRole"><option value="director">Admin — whole club</option><option value="instructor" selected>Instructor — assigned scope</option><option value="viewer">Viewer — limited access</option></select></div>
         <div class="field full staff-scope" id="staffScopeWrap">
-          <div class="field"><label for="staffUnit">Primary unit</label><select id="staffUnit"><option value="">No unit</option>${(state.units||[]).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select><div class="form-hint">Meeting access follows this unit.</div></div>
+          <div class="field"><label for="staffUnit">Primary unit</label><select id="staffUnit"><option value="">No unit</option>${activeUnits().map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select><div class="form-hint">Meeting access follows this unit.</div></div>
           <div class="field"><label>Authorized classes</label><div class="staff-class-options">${(state.classLevels||[]).map(c=>`<label class="staff-check"><input type="checkbox" data-staff-class value="${c.id}"> ${esc(c.name)}</label>`).join('')}</div><div class="form-hint">Class-progress access can include multiple classes.</div></div>
         </div>
       </div>
@@ -1245,7 +1415,7 @@ function scoreCard(m) {
 
 function renderApp() {
   if(!state) return loginView();
-  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='staff'?staffView():dashboardView())))}</main></div>${bottomNav()}`;
+  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='staff'?staffView():dashboardView()))))}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
   ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(err.message || 'Unit could not be loaded.'); renderApp(); } }; });
@@ -1266,6 +1436,14 @@ function renderApp() {
   document.querySelectorAll('[data-open-class-member]').forEach(btn=>btn.onclick=()=>{ selectedClassMemberId=btn.dataset.openClassMember; renderApp(); });
   document.querySelectorAll('[data-class-back]').forEach(btn=>btn.onclick=()=>{ if(btn.dataset.classBack==='all'){selectedClassId=null;selectedClassMemberId=null;} else selectedClassMemberId=null; renderApp(); });
   document.querySelectorAll('[data-req-status]').forEach(btn=>btn.onclick=()=>setRequirementStatus(btn.dataset.memberId,btn.dataset.requirementId,btn.dataset.reqStatus,btn));
+  const addUnit=document.getElementById('addUnitBtn'); if(addUnit) addUnit.onclick=()=>openUnitEditor();
+  const addUnitMobile=document.getElementById('addUnitBtnMobile'); if(addUnitMobile) addUnitMobile.onclick=()=>openUnitEditor();
+  document.querySelectorAll('[data-edit-unit]').forEach(btn=>btn.onclick=()=>openUnitEditor(btn.dataset.editUnit));
+  const unitForm=document.getElementById('unitForm'); if(unitForm) unitForm.onsubmit=saveUnitForm;
+  const closeUnit=document.getElementById('closeUnitModal'); if(closeUnit) closeUnit.onclick=closeUnitEditor;
+  const cancelUnit=document.getElementById('cancelUnitBtn'); if(cancelUnit) cancelUnit.onclick=closeUnitEditor;
+  const unitActive=document.getElementById('unitActiveBtn'); if(unitActive) unitActive.onclick=toggleUnitActive;
+  const unitModal=document.getElementById('unitModal'); if(unitModal) unitModal.onclick=e=>{ if(e.target===unitModal) closeUnitEditor(); };
   const addStaff=document.getElementById('addStaffBtn'); if(addStaff) addStaff.onclick=()=>openStaffEditor();
   document.querySelectorAll('[data-edit-staff]').forEach(btn=>btn.onclick=()=>openStaffEditor(btn.dataset.editStaff));
   const staffRole=document.getElementById('staffRole'); if(staffRole) staffRole.onchange=updateStaffScopeUI;
