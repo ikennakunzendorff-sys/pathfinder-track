@@ -231,13 +231,69 @@ button { cursor: pointer; }
 .member-form-actions-right { display:flex; gap:10px; }
 .member-empty { background:white; border:1px dashed #cfd8d3; border-radius:20px; padding:36px 18px; text-align:center; color:var(--muted); }
 .readonly-note { padding:12px 14px; background:var(--amber-soft); border:1px solid #f1ddb8; border-radius:14px; color:#806331; font-size:13px; margin-bottom:14px; }
+
+.classes-page { max-width:1120px; }
+.class-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.class-card { border:1px solid var(--line); background:white; border-radius:22px; padding:18px; box-shadow:0 8px 26px rgba(23,63,50,.045); display:grid; gap:14px; }
+.class-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.class-badge { width:44px; height:44px; border-radius:15px; display:grid; place-items:center; background:var(--forest-100); color:var(--forest-800); font-weight:900; }
+.class-card h3 { margin:0; font-size:18px; letter-spacing:-.025em; }
+.class-card p { margin:5px 0 0; color:var(--muted); font-size:12px; line-height:1.45; }
+.class-card-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.class-card-stat { background:#f7f9f7; border-radius:13px; padding:10px; }
+.class-card-stat span { display:block; color:var(--muted); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+.class-card-stat strong { display:block; margin-top:4px; font-size:16px; }
+.class-progress-list { display:grid; gap:10px; margin-top:14px; }
+.class-member-row { border:1px solid var(--line); background:white; border-radius:18px; padding:15px; display:grid; grid-template-columns:auto minmax(0,1fr) minmax(150px,.7fr) auto; gap:13px; align-items:center; }
+.class-member-row .progress { margin-top:8px; }
+.class-member-meta { color:var(--muted); font-size:12px; margin-top:4px; }
+.progress-number { font-size:20px; font-weight:900; color:var(--forest-800); text-align:right; }
+.class-hero { padding:20px; border-radius:22px; background:linear-gradient(135deg,var(--forest-900),var(--forest-700)); color:white; margin-bottom:16px; }
+.class-hero-grid { display:grid; grid-template-columns:1.4fr repeat(3,minmax(90px,.45fr)); gap:14px; align-items:end; }
+.class-hero h2 { margin:5px 0 4px; font-size:28px; letter-spacing:-.035em; }
+.class-hero p { margin:0; color:rgba(255,255,255,.7); }
+.class-hero-stat span { display:block; color:rgba(255,255,255,.58); font-size:10px; text-transform:uppercase; font-weight:800; letter-spacing:.06em; }
+.class-hero-stat strong { display:block; margin-top:5px; font-size:22px; }
+.requirement-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:14px 0 18px; }
+.requirement-group { background:white; border:1px solid var(--line); border-radius:20px; margin:12px 0; overflow:hidden; }
+.requirement-group-head { padding:15px 17px; background:#f7f9f7; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.requirement-group-head h3 { margin:0; font-size:15px; }
+.requirement-group-head span { color:var(--muted); font-size:11px; font-weight:800; }
+.requirement-list { display:grid; }
+.requirement-row { padding:15px 17px; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:15px; align-items:center; border-bottom:1px solid #edf0ee; }
+.requirement-row:last-child { border-bottom:0; }
+.requirement-code { display:inline-flex; align-items:center; min-width:30px; justify-content:center; padding:5px 7px; border-radius:9px; background:var(--forest-100); color:var(--forest-800); font-size:10px; font-weight:900; margin-right:8px; }
+.requirement-title { font-weight:800; font-size:13px; line-height:1.4; }
+.requirement-description { color:var(--muted); font-size:11px; margin-top:5px; line-height:1.45; }
+.advanced-badge { display:inline-flex; margin-left:7px; padding:4px 7px; border-radius:999px; background:var(--amber-soft); color:#8b631f; font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.04em; vertical-align:middle; }
+.req-status-buttons { display:flex; gap:5px; align-items:center; }
+.req-status-btn { border:1px solid var(--line); background:white; color:var(--muted); border-radius:10px; padding:8px 9px; font-size:10px; font-weight:850; white-space:nowrap; }
+.req-status-btn.active.not-completed { background:#f2f4f3; color:#56615b; border-color:#d8dfdb; }
+.req-status-btn.active.in-progress { background:var(--amber-soft); color:#8a611d; border-color:#efd8ad; }
+.req-status-btn.active.completed { background:var(--forest-100); color:var(--forest-800); border-color:#a8d3bb; }
+.req-status-btn:disabled { opacity:.5; cursor:not-allowed; }
+.requirement-signature { color:var(--muted); font-size:10px; margin-top:7px; text-align:right; }
+.class-empty { border:1px dashed #cfd8d3; background:white; color:var(--muted); border-radius:20px; padding:34px 18px; text-align:center; }
 @media (max-width: 800px) {
+  .class-grid { grid-template-columns:1fr 1fr; }
+  .class-hero-grid { grid-template-columns:1fr 1fr 1fr; }
+  .class-hero-grid > div:first-child { grid-column:1/-1; }
+  .requirement-summary { grid-template-columns:1fr 1fr; }
+  .class-member-row { grid-template-columns:auto minmax(0,1fr) auto; }
+  .class-member-row .class-member-progress { grid-column:2/3; }
   .member-directory-row { grid-template-columns:auto minmax(0,1fr) auto; }
   .member-directory-row .member-meta { grid-column:2 / 3; }
   .member-directory-row .member-unit { display:none; }
   .members-summary { grid-template-columns:1fr 1fr; }
 }
 @media (max-width: 560px) {
+  .class-grid { grid-template-columns:1fr; }
+  .class-hero-grid { grid-template-columns:1fr 1fr; }
+  .class-hero-stat:last-child { grid-column:1/-1; }
+  .requirement-row { grid-template-columns:1fr; }
+  .req-status-buttons { display:grid; grid-template-columns:repeat(3,1fr); }
+  .req-status-btn { padding:9px 5px; }
+  .requirement-signature { text-align:left; }
   .member-form-grid { grid-template-columns:1fr; }
   .member-form .field.full { grid-column:auto; }
   .member-form-actions { align-items:stretch; flex-direction:column-reverse; }
@@ -305,6 +361,15 @@ const defaultScoreCategories = [
 ];
 let scoreCategories = structuredClone(defaultScoreCategories);
 
+const demoClassLevels = [
+  {id:'demo-friend',name:'Friend',order_index:1},
+  {id:'demo-companion',name:'Companion',order_index:2},
+  {id:'demo-explorer',name:'Explorer',order_index:3},
+  {id:'demo-ranger',name:'Ranger',order_index:4},
+  {id:'demo-voyager',name:'Voyager',order_index:5},
+  {id:'demo-guide',name:'Guide',order_index:6},
+];
+
 function categoryIcon(name='') {
   const n = name.toLowerCase();
   if(n.includes('punct')) return '⏱';
@@ -343,6 +408,8 @@ const demoState = {
 
 let state = null;
 let route = 'dashboard';
+let selectedClassId = null;
+let selectedClassMemberId = null;
 
 function iconPath() {
   return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 18.2C8.8 16.8 8.3 11.6 12 10.3c3.8-1.3 4.7 3 7 1.9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="18" r="2" fill="currentColor"/><path d="M12.2 4.2c2.2 0 4 1.8 4 4 0 3-4 6.2-4 6.2s-4-3.2-4-6.2c0-2.2 1.8-4 4-4Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12.2" cy="8.2" r="1.2" fill="currentColor"/></svg>`;
@@ -353,7 +420,50 @@ function esc(value='') { return String(value ?? '').replace(/[&<>"']/g, ch=>({ '
 function gradeClassOrder(grade){ return ({5:1,6:2,7:3,8:4,9:5,10:6})[Number(grade)] || null; }
 function classForGrade(grade){ const order=gradeClassOrder(grade); return order ? state?.classLevels?.find(c=>Number(c.order_index)===order) || null : null; }
 function unitName(unitId){ return state?.units?.find(u=>String(u.id)===String(unitId))?.name || 'No unit'; }
-function className(classId){ return state?.classLevels?.find(c=>String(c.id)===String(classId))?.name || 'No class'; }
+function availableClassLevels(){ return state?.classLevels?.length ? state.classLevels : demoClassLevels; }
+function className(classId){ return availableClassLevels().find(c=>String(c.id)===String(classId))?.name || 'No class'; }
+function visibleMembers(){
+  if(state?.mode==='demo') return (state.members||[]).map(m=>({...m,current_class_level_id:demoClassLevels.find(c=>c.name===m.class)?.id||null,active:true,unit_id:'demo-unit'}));
+  return state?.allMembers || [];
+}
+function demoRequirements(){
+  const cats=['Personal Growth','Spiritual Discovery','Serving Others','Friendship Development'];
+  return demoClassLevels.flatMap((cl,ci)=>cats.map((category,i)=>({
+    id:`${cl.id}-r${i+1}`,class_level_id:cl.id,code:String(i+1),title:['Grade Requirement','Bible Learning','Community Service','Team Development'][i],description:'Demo requirement for preview mode.',category,sort_index:(i+1)*10,is_advanced:false
+  })));
+}
+function availableRequirements(){ return state?.requirements?.length ? state.requirements : (state?.mode==='demo' ? demoRequirements() : []); }
+function statusKey(memberId,requirementId){ return `${memberId}::${requirementId}`; }
+function requirementStatus(memberId,requirementId){
+  return (state?.requirementStatuses||[]).find(x=>String(x.member_id)===String(memberId)&&String(x.requirement_id)===String(requirementId)) || null;
+}
+function normalizedRequirementStatus(memberId,requirementId){
+  const row=requirementStatus(memberId,requirementId);
+  if(row?.status==='completed' || row?.completed_at) return 'completed';
+  if(row?.status==='in_progress') return 'in_progress';
+  return 'not_completed';
+}
+function requirementsForClass(classId,advanced=null){
+  return availableRequirements().filter(r=>String(r.class_level_id)===String(classId) && (advanced===null || !!r.is_advanced===advanced)).sort((a,b)=>(a.sort_index||0)-(b.sort_index||0));
+}
+function memberClassProgress(member){
+  const classId=member.current_class_level_id || member.class_id || demoClassLevels.find(c=>c.name===member.class)?.id || null;
+  const reqs=requirementsForClass(classId,false);
+  const completed=reqs.filter(r=>normalizedRequirementStatus(member.id,r.id)==='completed').length;
+  const inProgress=reqs.filter(r=>normalizedRequirementStatus(member.id,r.id)==='in_progress').length;
+  return {total:reqs.length,completed,inProgress,pct:reqs.length?Math.round(completed/reqs.length*100):0};
+}
+function unitClassProgress(members=state?.members||[]){
+  const items=members.filter(m=>(m.current_class_level_id||m.class_id||m.class));
+  if(!items.length) return 0;
+  const progresses=items.map(memberClassProgress).filter(p=>p.total>0);
+  return progresses.length ? Math.round(progresses.reduce((sum,p)=>sum+p.pct,0)/progresses.length) : 0;
+}
+function formatShortDate(value){
+  if(!value) return '';
+  const d=new Date(value); if(Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
 function maxScore(){ return scoreCategories.reduce((a,c)=>a+c.points,0); }
 function memberPoints(m){ if(!m.present) return 0; return scoreCategories.reduce((sum,c)=>sum+(m.scores?.[c.key] ? c.points : 0),0); }
 function activeUnitId(){ return state?.selectedUnitId || state?.user?.unit_id || null; }
@@ -452,7 +562,7 @@ async function loadAuthenticatedState(token) {
   if(!profile.club_id) throw new Error('Your account is not assigned to a club yet.');
 
   const today = localISODate();
-  const [clubs, units, members, categories, meetings, clubYears, classLevels] = await Promise.all([
+  const [clubs, units, members, categories, meetings, clubYears, classLevels, requirements, requirementStatuses] = await Promise.all([
     sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, token),
     profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name&order=name`, token),
     sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,class_levels(name)&order=full_name`, token),
@@ -460,6 +570,8 @@ async function loadAuthenticatedState(token) {
     sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id,club_year_id&order=meeting_date.desc&limit=50`, token),
     sb(`club_years?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,label,start_date,end_date&order=start_date.desc&limit=1`, token),
     sb(`class_levels?select=id,name,order_index&order=order_index`, token),
+    sb(`requirements?select=id,class_level_id,code,title,description,category,sort_index,is_advanced&order=sort_index`, token),
+    sb(`member_requirement_status?select=id,member_id,requirement_id,status,completed_at,signed_by,notes,updated_at`, token),
   ]);
 
   const liveCategories = categories
@@ -485,6 +597,8 @@ async function loadAuthenticatedState(token) {
     categories,
     clubYear:clubYears[0] || null,
     classLevels,
+    requirements,
+    requirementStatuses,
     meetings,
     meeting:null,
   };
@@ -554,7 +668,7 @@ function sidebar() {
       <button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂ Dashboard</button>
       <button class="${route==='meeting'?'active':''}" data-route="meeting">✓ Meeting</button>
       <button class="${route==='members'?'active':''}" data-route="members">♙ Members</button>
-      <button>◫ Classes</button>
+      <button class="${route==='classes'?'active':''}" data-route="classes">◫ Classes</button>
       <button>⚙ Settings</button>
     </nav>
     <div class="sidebar-spacer"></div>
@@ -563,7 +677,7 @@ function sidebar() {
 }
 
 function mobileTop(){ return `<div class="mobile-top">${brand()}<div class="avatar">${initials(state.user.full_name)}</div></div>`; }
-function bottomNav(){ return `<nav class="bottom-nav"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button>⚙<br>More</button></nav>`; }
+function bottomNav(){ return `<nav class="bottom-nav"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button></nav>`; }
 
 function dashboardView() {
   const members = state.members || [];
@@ -571,6 +685,7 @@ function dashboardView() {
   const totalPoints = members.reduce((s,m)=>s+memberPoints(m),0);
   const maxPointsTotal = members.filter(m=>m.present!==false).length * maxScore();
   const scorePct = maxPointsTotal ? Math.round(totalPoints/maxPointsTotal*100) : 0;
+  const classPct = unitClassProgress(members);
   return `${mobileTop()}
     <div class="topbar"><div><h1>Good afternoon 👋</h1><p>${esc(state.unit.name)} · ${esc(state.club.name)}</p></div><div class="top-actions">${unitPicker()}<button class="btn btn-ghost" id="logoutBtn">Sign out</button></div></div>
     ${mobileUnitPicker()}
@@ -578,7 +693,7 @@ function dashboardView() {
       <div class="stat"><div class="label">Unit members</div><div class="value">${members.length}</div><div class="meta">Active roster</div></div>
       <div class="stat"><div class="label">Attendance</div><div class="value">${present}/${members.length||0}</div><div class="meta">Current demo meeting</div></div>
       <div class="stat"><div class="label">Merit score</div><div class="value">${scorePct}%</div><div class="meta">${totalPoints} pts earned</div></div>
-      <div class="stat"><div class="label">Class progress</div><div class="value">68%</div><div class="meta">Demo indicator</div></div>
+      <div class="stat"><div class="label">Class progress</div><div class="value">${classPct}%</div><div class="meta">Core requirements</div></div>
     </section>
     <section class="grid content-grid">
       <div class="card">
@@ -594,7 +709,7 @@ function dashboardView() {
         <div class="card-body">
           <div class="progress-block"><div class="progress-label"><span>Attendance</span><strong>${members.length?Math.round(present/members.length*100):0}%</strong></div><div class="progress"><span style="width:${members.length?present/members.length*100:0}%"></span></div></div>
           <div class="progress-block"><div class="progress-label"><span>Meeting score</span><strong>${scorePct}%</strong></div><div class="progress"><span style="width:${scorePct}%"></span></div></div>
-          <div class="progress-block"><div class="progress-label"><span>Class completion</span><strong>68%</strong></div><div class="progress"><span style="width:68%"></span></div></div>
+          <div class="progress-block"><div class="progress-label"><span>Class completion</span><strong>${classPct}%</strong></div><div class="progress"><span style="width:${classPct}%"></span></div></div>
           <div class="card" style="box-shadow:none;border-radius:18px;background:var(--amber-soft);border-color:#f1ddb8"><div class="card-body" style="padding-top:18px"><strong style="color:#8f5d18">Tip</strong><p style="color:#8a704b;font-size:13px;line-height:1.5;margin-bottom:0">Keep weekly scoring quick. Tap only the items that need adjustment, then save the meeting.</p></div></div>
         </div>
       </div>
@@ -759,6 +874,144 @@ async function toggleMemberArchive() {
   }
 }
 
+
+function classesView() {
+  if(!selectedClassId) return classesOverviewView();
+  if(!selectedClassMemberId) return classRosterView();
+  return classMemberProgressView();
+}
+
+function classesOverviewView() {
+  const levels=availableClassLevels();
+  const members=visibleMembers().filter(m=>m.active!==false);
+  const cards=levels.map((cl,index)=>{
+    const roster=members.filter(m=>String(m.current_class_level_id)===String(cl.id));
+    const standard=requirementsForClass(cl.id,false);
+    const advanced=requirementsForClass(cl.id,true);
+    const avg=roster.length ? Math.round(roster.reduce((sum,m)=>sum+memberClassProgress(m).pct,0)/roster.length) : 0;
+    return `<article class="class-card">
+      <div class="class-card-top"><div><div class="class-badge">${index+1}</div></div><span class="status-pill">${avg}%</span></div>
+      <div><h3>${esc(cl.name)}</h3><p>${standard.length} core requirements${advanced.length?` · ${advanced.length} advanced`:''}</p></div>
+      <div class="class-card-stats"><div class="class-card-stat"><span>Pathfinders</span><strong>${roster.length}</strong></div><div class="class-card-stat"><span>Avg. progress</span><strong>${avg}%</strong></div></div>
+      <div class="progress"><span style="width:${avg}%"></span></div>
+      <button class="btn btn-ghost" data-open-class="${cl.id}">Open class →</button>
+    </article>`;
+  }).join('');
+  return `${mobileTop()}<div class="classes-page">
+    <div class="topbar"><div><h1>Classes</h1><p>${esc(state.club.name)} · Class requirement progress</p></div></div>
+    <section class="class-grid">${cards || '<div class="class-empty">No class levels are configured.</div>'}</section>
+  </div>`;
+}
+
+function classRosterView() {
+  const cl=availableClassLevels().find(c=>String(c.id)===String(selectedClassId));
+  if(!cl){ selectedClassId=null; return classesOverviewView(); }
+  const members=visibleMembers().filter(m=>m.active!==false && String(m.current_class_level_id)===String(cl.id));
+  const standard=requirementsForClass(cl.id,false), advanced=requirementsForClass(cl.id,true);
+  const avg=members.length ? Math.round(members.reduce((sum,m)=>sum+memberClassProgress(m).pct,0)/members.length) : 0;
+  return `${mobileTop()}<div class="classes-page">
+    <div class="back-row"><button class="btn btn-ghost" data-class-back="all">← All classes</button><span>${esc(cl.name)}</span></div>
+    <div class="class-hero"><div class="class-hero-grid">
+      <div><div class="eyebrow">Pathfinder Class</div><h2>${esc(cl.name)}</h2><p>Track each Pathfinder against the official class requirements.</p></div>
+      <div class="class-hero-stat"><span>Pathfinders</span><strong>${members.length}</strong></div>
+      <div class="class-hero-stat"><span>Core requirements</span><strong>${standard.length}</strong></div>
+      <div class="class-hero-stat"><span>Average</span><strong>${avg}%</strong></div>
+    </div></div>
+    ${advanced.length?`<div class="readonly-note">${advanced.length} advanced requirement${advanced.length===1?'':'s'} are tracked separately and do not reduce the core completion percentage.</div>`:''}
+    <div class="class-progress-list">${members.length?members.map(classMemberRow).join(''):'<div class="class-empty">No active Pathfinders are assigned to this class yet.</div>'}</div>
+  </div>`;
+}
+
+function classMemberRow(member) {
+  const p=memberClassProgress(member);
+  return `<div class="class-member-row">
+    <div class="member-avatar">${initials(member.full_name)}</div>
+    <div><strong>${esc(member.full_name)}</strong><div class="class-member-meta">${member.school_grade?`Grade ${member.school_grade} · `:''}${esc(unitName(member.unit_id))}</div><div class="progress"><span style="width:${p.pct}%"></span></div></div>
+    <div class="class-member-progress"><div class="progress-number">${p.pct}%</div><div class="class-member-meta">${p.completed}/${p.total} completed${p.inProgress?` · ${p.inProgress} in progress`:''}</div></div>
+    <button class="btn btn-ghost" data-open-class-member="${member.id}">Requirements →</button>
+  </div>`;
+}
+
+function classMemberProgressView() {
+  const cl=availableClassLevels().find(c=>String(c.id)===String(selectedClassId));
+  const member=visibleMembers().find(m=>String(m.id)===String(selectedClassMemberId));
+  if(!cl || !member){ selectedClassMemberId=null; return classRosterView(); }
+  const reqs=requirementsForClass(cl.id,null);
+  const core=requirementsForClass(cl.id,false), advanced=requirementsForClass(cl.id,true);
+  const coreDone=core.filter(r=>normalizedRequirementStatus(member.id,r.id)==='completed').length;
+  const coreProgress=core.length?Math.round(coreDone/core.length*100):0;
+  const inProgress=core.filter(r=>normalizedRequirementStatus(member.id,r.id)==='in_progress').length;
+  const advDone=advanced.filter(r=>normalizedRequirementStatus(member.id,r.id)==='completed').length;
+  const groups=[];
+  for(const req of reqs){
+    const name=req.category || 'Other';
+    let group=groups.find(g=>g.name===name);
+    if(!group){ group={name,items:[]}; groups.push(group); }
+    group.items.push(req);
+  }
+  const editable=state.mode==='demo' || ['director','instructor'].includes(state.user.role);
+  return `${mobileTop()}<div class="classes-page">
+    <div class="back-row"><button class="btn btn-ghost" data-class-back="class">← ${esc(cl.name)}</button><span>${esc(member.full_name)}</span></div>
+    <div class="topbar"><div><h1>${esc(member.full_name)}</h1><p>${esc(cl.name)} · ${member.school_grade?`Grade ${member.school_grade} · `:''}${esc(unitName(member.unit_id))}</p></div></div>
+    ${!editable?'<div class="readonly-note">Your account can view this progress but cannot change requirement status.</div>':''}
+    <section class="requirement-summary">
+      <div class="mini-stat"><span>Core progress</span><strong>${coreProgress}%</strong></div>
+      <div class="mini-stat"><span>Completed</span><strong>${coreDone}/${core.length}</strong></div>
+      <div class="mini-stat"><span>In progress</span><strong>${inProgress}</strong></div>
+      <div class="mini-stat"><span>Advanced</span><strong>${advDone}/${advanced.length}</strong></div>
+    </section>
+    <div class="progress-block"><div class="progress-label"><span>Core class completion</span><strong>${coreProgress}%</strong></div><div class="progress"><span style="width:${coreProgress}%"></span></div></div>
+    ${groups.map(g=>requirementGroupHtml(g,member,editable)).join('') || '<div class="class-empty">No requirements are configured for this class.</div>'}
+  </div>`;
+}
+
+function requirementGroupHtml(group,member,editable) {
+  const done=group.items.filter(r=>normalizedRequirementStatus(member.id,r.id)==='completed').length;
+  return `<section class="requirement-group"><div class="requirement-group-head"><h3>${esc(group.name)}</h3><span>${done}/${group.items.length} completed</span></div><div class="requirement-list">${group.items.map(r=>requirementRowHtml(r,member,editable)).join('')}</div></section>`;
+}
+
+function requirementRowHtml(req,member,editable) {
+  const row=requirementStatus(member.id,req.id);
+  const current=normalizedRequirementStatus(member.id,req.id);
+  const signature=current==='completed' && row?.signed_by ? `Completed ${formatShortDate(row.completed_at)} · ${esc(row.signed_by)}` : '';
+  return `<div class="requirement-row" data-requirement="${req.id}">
+    <div><div><span class="requirement-code">${esc(req.code)}</span><span class="requirement-title">${esc(req.title)}</span>${req.is_advanced?'<span class="advanced-badge">Advanced</span>':''}</div>${req.description?`<div class="requirement-description">${esc(req.description)}</div>`:''}${row?.notes?`<div class="requirement-description"><strong>Note:</strong> ${esc(row.notes)}</div>`:''}</div>
+    <div><div class="req-status-buttons">
+      <button class="req-status-btn ${current==='not_completed'?'active not-completed':''}" ${editable?'':'disabled'} data-req-status="not_completed" data-member-id="${member.id}" data-requirement-id="${req.id}">Not started</button>
+      <button class="req-status-btn ${current==='in_progress'?'active in-progress':''}" ${editable?'':'disabled'} data-req-status="in_progress" data-member-id="${member.id}" data-requirement-id="${req.id}">In progress</button>
+      <button class="req-status-btn ${current==='completed'?'active completed':''}" ${editable?'':'disabled'} data-req-status="completed" data-member-id="${member.id}" data-requirement-id="${req.id}">Completed</button>
+    </div>${signature?`<div class="requirement-signature">${signature}</div>`:''}</div>
+  </div>`;
+}
+
+function upsertLocalRequirementStatus(row) {
+  state.requirementStatuses ||= [];
+  const i=state.requirementStatuses.findIndex(x=>String(x.member_id)===String(row.member_id)&&String(x.requirement_id)===String(row.requirement_id));
+  if(i>=0) state.requirementStatuses[i]=row; else state.requirementStatuses.push(row);
+}
+
+async function setRequirementStatus(memberId,requirementId,status,button) {
+  if(state.mode==='demo') {
+    const row={id:statusKey(memberId,requirementId),member_id:memberId,requirement_id:requirementId,status,completed_at:status==='completed'?new Date().toISOString():null,signed_by:status==='completed'?'Demo Counselor':null,notes:null,updated_at:new Date().toISOString()};
+    upsertLocalRequirementStatus(row); renderApp(); return;
+  }
+  if(!['director','instructor'].includes(state.user.role)) return;
+  const original=button?.textContent;
+  if(button){ button.disabled=true; button.textContent='Saving…'; }
+  try {
+    const payload=[{member_id:memberId,requirement_id:requirementId,status,completed_at:status==='completed'?new Date().toISOString():null}];
+    const saved=await sbWrite('member_requirement_status?on_conflict=member_id,requirement_id',state.token,{body:payload,prefer:'resolution=merge-duplicates,return=representation'});
+    if(saved?.[0]) upsertLocalRequirementStatus(saved[0]);
+    else {
+      const rows=await sb(`member_requirement_status?member_id=eq.${encodeURIComponent(memberId)}&requirement_id=eq.${encodeURIComponent(requirementId)}&select=id,member_id,requirement_id,status,completed_at,signed_by,notes,updated_at&limit=1`,state.token);
+      if(rows?.[0]) upsertLocalRequirementStatus(rows[0]);
+    }
+    renderApp();
+  } catch(err) {
+    console.error(err); if(button){button.disabled=false;button.textContent=original;} alert(err.message || 'Requirement status could not be saved.');
+  }
+}
+
 function meetingView() {
   return `${mobileTop()}<div class="meeting-page">
     <div class="back-row"><button class="btn btn-ghost" data-route="dashboard">← Dashboard</button><span>Meeting scoring</span></div>
@@ -781,7 +1034,7 @@ function scoreCard(m) {
 
 function renderApp() {
   if(!state) return loginView();
-  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():dashboardView())}</main></div>${bottomNav()}`;
+  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():dashboardView()))}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
   ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(err.message || 'Unit could not be loaded.'); renderApp(); } }; });
@@ -798,6 +1051,10 @@ function renderApp() {
   const cancelMember=document.getElementById('cancelMemberBtn'); if(cancelMember) cancelMember.onclick=closeMemberEditor;
   const archiveMember=document.getElementById('archiveMemberBtn'); if(archiveMember) archiveMember.onclick=toggleMemberArchive;
   const memberModal=document.getElementById('memberModal'); if(memberModal) memberModal.onclick=e=>{ if(e.target===memberModal) closeMemberEditor(); };
+  document.querySelectorAll('[data-open-class]').forEach(btn=>btn.onclick=()=>{ selectedClassId=btn.dataset.openClass; selectedClassMemberId=null; renderApp(); });
+  document.querySelectorAll('[data-open-class-member]').forEach(btn=>btn.onclick=()=>{ selectedClassMemberId=btn.dataset.openClassMember; renderApp(); });
+  document.querySelectorAll('[data-class-back]').forEach(btn=>btn.onclick=()=>{ if(btn.dataset.classBack==='all'){selectedClassId=null;selectedClassMemberId=null;} else selectedClassMemberId=null; renderApp(); });
+  document.querySelectorAll('[data-req-status]').forEach(btn=>btn.onclick=()=>setRequirementStatus(btn.dataset.memberId,btn.dataset.requirementId,btn.dataset.reqStatus,btn));
   if(route==='members') filterMemberDirectory();
 }
 
@@ -882,7 +1139,7 @@ async function saveMeeting(btn){
     alert(err.message || 'The meeting could not be saved.');
   }
 }
-function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=structuredClone(defaultScoreCategories); state=null; route='dashboard'; loginView(); }
+function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=structuredClone(defaultScoreCategories); state=null; route='dashboard'; selectedClassId=null; selectedClassMemberId=null; loginView(); }
 
 (async function boot(){
   const params = new URLSearchParams(location.search);
