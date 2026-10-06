@@ -194,6 +194,58 @@ button { cursor: pointer; }
 .empty { color: var(--muted); text-align:center; padding: 28px 10px; }
 .loading { min-height:100vh; display:grid; place-items:center; color:var(--forest-900); font-weight:800; }
 
+
+.members-page { max-width: 1120px; }
+.members-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.members-toolbar .search-box { min-width:240px; flex:1; }
+.search-box, .filter-select, .member-form input, .member-form select {
+  border:1px solid var(--line); background:white; color:var(--ink); border-radius:13px; padding:12px 13px; outline:none;
+}
+.search-box:focus, .filter-select:focus, .member-form input:focus, .member-form select:focus { border-color:var(--forest-700); box-shadow:0 0 0 4px rgba(44,109,85,.10); }
+.member-directory { display:grid; gap:10px; margin-top:16px; }
+.member-directory-row { background:white; border:1px solid var(--line); border-radius:18px; padding:15px 16px; display:grid; grid-template-columns:auto minmax(0,1.4fr) minmax(100px,.7fr) minmax(130px,.8fr) auto; gap:13px; align-items:center; }
+.member-directory-row.inactive { opacity:.62; background:#f7f8f6; }
+.member-directory-row .member-main strong { display:block; font-size:14px; }
+.member-directory-row .member-main small, .member-meta small { color:var(--muted); }
+.member-meta strong { display:block; font-size:13px; margin-top:2px; }
+.status-pill { display:inline-flex; align-items:center; padding:7px 9px; border-radius:999px; font-size:11px; font-weight:850; background:var(--forest-100); color:var(--forest-800); }
+.status-pill.inactive { background:#eceeed; color:#6f7773; }
+.members-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:14px 0 18px; }
+.mini-stat { border:1px solid var(--line); background:white; border-radius:17px; padding:15px; }
+.mini-stat span { color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
+.mini-stat strong { display:block; font-size:24px; margin-top:6px; }
+.member-modal { position:fixed; inset:0; z-index:90; display:grid; place-items:center; padding:22px; background:rgba(16,45,37,.38); backdrop-filter:blur(8px); }
+.member-modal[hidden] { display:none; }
+.member-modal-card { width:min(640px,100%); max-height:calc(100vh - 44px); overflow:auto; background:white; border-radius:26px; border:1px solid var(--line); box-shadow:0 24px 70px rgba(16,45,37,.24); }
+.member-modal-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; padding:22px 22px 8px; }
+.member-modal-head h2 { margin:0; font-size:24px; letter-spacing:-.03em; }
+.icon-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--line); background:white; color:var(--muted); }
+.member-form { padding:10px 22px 22px; }
+.member-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.member-form .field { margin:0; }
+.member-form .field.full { grid-column:1/-1; }
+.member-form label { display:block; font-size:12px; font-weight:800; margin-bottom:7px; }
+.member-form input, .member-form select { width:100%; }
+.form-hint { margin-top:7px; color:var(--muted); font-size:12px; line-height:1.45; }
+.member-form-actions { display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:22px; padding-top:18px; border-top:1px solid var(--line); }
+.member-form-actions-right { display:flex; gap:10px; }
+.member-empty { background:white; border:1px dashed #cfd8d3; border-radius:20px; padding:36px 18px; text-align:center; color:var(--muted); }
+.readonly-note { padding:12px 14px; background:var(--amber-soft); border:1px solid #f1ddb8; border-radius:14px; color:#806331; font-size:13px; margin-bottom:14px; }
+@media (max-width: 800px) {
+  .member-directory-row { grid-template-columns:auto minmax(0,1fr) auto; }
+  .member-directory-row .member-meta { grid-column:2 / 3; }
+  .member-directory-row .member-unit { display:none; }
+  .members-summary { grid-template-columns:1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .member-form-grid { grid-template-columns:1fr; }
+  .member-form .field.full { grid-column:auto; }
+  .member-form-actions { align-items:stretch; flex-direction:column-reverse; }
+  .member-form-actions-right { display:grid; grid-template-columns:1fr 1fr; }
+  .members-toolbar { display:grid; grid-template-columns:1fr 1fr; }
+  .members-toolbar .search-box { min-width:0; grid-column:1/-1; }
+}
+
 @media (max-width: 960px) {
   .login-page { grid-template-columns: 1fr; }
   .hero { min-height: 390px; }
@@ -297,12 +349,17 @@ function iconPath() {
 }
 
 function initials(name='') { return name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase(); }
+function esc(value='') { return String(value ?? '').replace(/[&<>"']/g, ch=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch])); }
+function gradeClassOrder(grade){ return ({5:1,6:2,7:3,8:4,9:5,10:6})[Number(grade)] || null; }
+function classForGrade(grade){ const order=gradeClassOrder(grade); return order ? state?.classLevels?.find(c=>Number(c.order_index)===order) || null : null; }
+function unitName(unitId){ return state?.units?.find(u=>String(u.id)===String(unitId))?.name || 'No unit'; }
+function className(classId){ return state?.classLevels?.find(c=>String(c.id)===String(classId))?.name || 'No class'; }
 function maxScore(){ return scoreCategories.reduce((a,c)=>a+c.points,0); }
 function memberPoints(m){ if(!m.present) return 0; return scoreCategories.reduce((sum,c)=>sum+(m.scores?.[c.key] ? c.points : 0),0); }
 function activeUnitId(){ return state?.selectedUnitId || state?.user?.unit_id || null; }
 function unitPicker(id='unitSelect'){
   if(state?.mode!=='live' || state?.user?.role!=='director' || !state?.units?.length) return '';
-  return `<label class="unit-picker"><span>Unit</span><select class="unit-select" id="${id}">${state.units.map(u=>`<option value="${u.id}" ${String(u.id)===String(activeUnitId())?'selected':''}>${u.name}</option>`).join('')}</select></label>`;
+  return `<label class="unit-picker"><span>Unit</span><select class="unit-select" id="${id}">${state.units.map(u=>`<option value="${u.id}" ${String(u.id)===String(activeUnitId())?'selected':''}>${esc(u.name)}</option>`).join('')}</select></label>`;
 }
 function mobileUnitPicker(){ const picker=unitPicker('unitSelectMobile'); return picker ? `<div class="mobile-unit-picker">${picker}</div>` : ''; }
 
@@ -395,13 +452,14 @@ async function loadAuthenticatedState(token) {
   if(!profile.club_id) throw new Error('Your account is not assigned to a club yet.');
 
   const today = localISODate();
-  const [clubs, units, members, categories, meetings, clubYears] = await Promise.all([
+  const [clubs, units, members, categories, meetings, clubYears, classLevels] = await Promise.all([
     sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, token),
     profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name&order=name`, token),
-    sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,class_levels(name)&active=eq.true&order=full_name`, token),
+    sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,class_levels(name)&order=full_name`, token),
     sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,name,default_points,is_bonus,sort_order&order=sort_order`, token),
     sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id,club_year_id&order=meeting_date.desc&limit=50`, token),
     sb(`club_years?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,label,start_date,end_date&order=start_date.desc&limit=1`, token),
+    sb(`class_levels?select=id,name,order_index&order=order_index`, token),
   ]);
 
   const liveCategories = categories
@@ -426,6 +484,7 @@ async function loadAuthenticatedState(token) {
     members:[],
     categories,
     clubYear:clubYears[0] || null,
+    classLevels,
     meetings,
     meeting:null,
   };
@@ -460,7 +519,7 @@ async function loadSelectedUnit(dateStr=localISODate()) {
   }
 
   state.members = state.allMembers
-    .filter(m=>String(m.unit_id)===String(unitId))
+    .filter(m=>m.active!==false && String(m.unit_id)===String(unitId))
     .map(m=>{
       const memberAttendance = attendanceByMember.get(String(m.id));
       const memberScoreRows = scoresByMember.get(String(m.id));
@@ -470,7 +529,7 @@ async function loadSelectedUnit(dateStr=localISODate()) {
         if(todayMeeting && memberScoreRows?.size) scoreState[c.key] = (memberScoreRows.get(String(c.id))?.points_awarded || 0) > 0;
         else scoreState[c.key] = present;
       }
-      return {id:m.id,full_name:m.full_name,class:m.class_levels?.name||'Class',grade:m.school_grade,unit_id:m.unit_id,present,scores:scoreState};
+      return {id:m.id,full_name:m.full_name,class:m.class_levels?.name||className(m.current_class_level_id),class_id:m.current_class_level_id,grade:m.school_grade,unit_id:m.unit_id,active:m.active,present,scores:scoreState};
     });
 
   state.meeting = todayMeeting
@@ -494,7 +553,7 @@ function sidebar() {
     <nav class="nav">
       <button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂ Dashboard</button>
       <button class="${route==='meeting'?'active':''}" data-route="meeting">✓ Meeting</button>
-      <button>♙ Members</button>
+      <button class="${route==='members'?'active':''}" data-route="members">♙ Members</button>
       <button>◫ Classes</button>
       <button>⚙ Settings</button>
     </nav>
@@ -504,7 +563,7 @@ function sidebar() {
 }
 
 function mobileTop(){ return `<div class="mobile-top">${brand()}<div class="avatar">${initials(state.user.full_name)}</div></div>`; }
-function bottomNav(){ return `<nav class="bottom-nav"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button>♙<br>Members</button><button>⚙<br>More</button></nav>`; }
+function bottomNav(){ return `<nav class="bottom-nav"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button>⚙<br>More</button></nav>`; }
 
 function dashboardView() {
   const members = state.members || [];
@@ -513,7 +572,7 @@ function dashboardView() {
   const maxPointsTotal = members.filter(m=>m.present!==false).length * maxScore();
   const scorePct = maxPointsTotal ? Math.round(totalPoints/maxPointsTotal*100) : 0;
   return `${mobileTop()}
-    <div class="topbar"><div><h1>Good afternoon 👋</h1><p>${state.unit.name} · ${state.club.name}</p></div><div class="top-actions">${unitPicker()}<button class="btn btn-ghost" id="logoutBtn">Sign out</button></div></div>
+    <div class="topbar"><div><h1>Good afternoon 👋</h1><p>${esc(state.unit.name)} · ${esc(state.club.name)}</p></div><div class="top-actions">${unitPicker()}<button class="btn btn-ghost" id="logoutBtn">Sign out</button></div></div>
     ${mobileUnitPicker()}
     <section class="grid stats">
       <div class="stat"><div class="label">Unit members</div><div class="value">${members.length}</div><div class="meta">Active roster</div></div>
@@ -524,11 +583,11 @@ function dashboardView() {
     <section class="grid content-grid">
       <div class="card">
         <div class="next-meeting">
-          <div class="eyebrow">Next action</div><h2>Record today's meeting</h2><p>${state.meeting?.date || 'Current meeting'} · ${state.unit.name}</p>
+          <div class="eyebrow">Next action</div><h2>Record today's meeting</h2><p>${state.meeting?.date || 'Current meeting'} · ${esc(state.unit.name)}</p>
           <div class="meeting-action"><span class="score-chip">45 pts max / Pathfinder</span><button class="btn" data-route="meeting">Open meeting →</button></div>
         </div>
-        <div class="card-head"><div><h3>My unit</h3><p>Quick member overview</p></div><button class="btn btn-ghost">View all</button></div>
-        <div class="card-body member-list">${members.length ? members.map(m=>`<div class="member-row"><div class="member-avatar">${initials(m.full_name)}</div><div><strong>${m.full_name}</strong><small>${m.class}${m.grade ? ` · Grade ${m.grade}`:''}</small></div><div class="points">${memberPoints(m)} pts</div></div>`).join('') : '<div class="empty">No members assigned yet.</div>'}</div>
+        <div class="card-head"><div><h3>My unit</h3><p>Quick member overview</p></div><button class="btn btn-ghost" data-route="members">View all</button></div>
+        <div class="card-body member-list">${members.length ? members.map(m=>`<div class="member-row"><div class="member-avatar">${initials(m.full_name)}</div><div><strong>${esc(m.full_name)}</strong><small>${esc(m.class)}${m.grade ? ` · Grade ${m.grade}`:''}</small></div><div class="points">${memberPoints(m)} pts</div></div>`).join('') : '<div class="empty">No members assigned yet.</div>'}</div>
       </div>
       <div class="card">
         <div class="card-head"><div><h3>Unit snapshot</h3><p>Simple, useful signals</p></div></div>
@@ -540,6 +599,164 @@ function dashboardView() {
         </div>
       </div>
     </section>`;
+}
+
+
+function membersView() {
+  const source = state.mode==='demo' ? (state.members || []).map(m=>({...m,active:true,current_class_level_id:null,unit_id:null})) : (state.allMembers || []);
+  const activeCount = source.filter(m=>m.active!==false).length;
+  const inactiveCount = source.length-activeCount;
+  const editable = state.mode==='live' && state.user.role==='director';
+  const visibleUnits = new Set(source.filter(m=>m.active!==false && m.unit_id).map(m=>String(m.unit_id))).size;
+  const classCount = new Set(source.filter(m=>m.active!==false && m.current_class_level_id).map(m=>String(m.current_class_level_id))).size;
+  return `${mobileTop()}<div class="members-page">
+    <div class="topbar"><div><h1>Members</h1><p>${esc(state.club.name)} · Pathfinder roster</p></div><div class="top-actions">${editable?'<button class="btn btn-primary" id="addMemberBtn" style="width:auto">+ Add Pathfinder</button>':''}</div></div>
+    ${editable?'<div class="mobile-unit-picker"><button class="btn btn-primary" id="addMemberBtnMobile" style="width:100%">+ Add Pathfinder</button></div>':''}
+    ${!editable?'<div class="readonly-note">You can view the members allowed by your role. Member registration and editing are available to the club director.</div>':''}
+    <section class="members-summary">
+      <div class="mini-stat"><span>Active</span><strong>${activeCount}</strong></div>
+      <div class="mini-stat"><span>Archived</span><strong>${inactiveCount}</strong></div>
+      <div class="mini-stat"><span>Units</span><strong>${visibleUnits}</strong></div>
+      <div class="mini-stat"><span>Classes</span><strong>${classCount}</strong></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><div><h3>Pathfinder directory</h3><p>Search, review and maintain the club roster.</p></div></div>
+      <div class="card-body">
+        <div class="members-toolbar">
+          <input class="search-box" id="memberSearch" type="search" placeholder="Search by name…" autocomplete="off">
+          <select class="filter-select" id="memberUnitFilter"><option value="">All units</option>${(state.units||[]).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select>
+          <select class="filter-select" id="memberStatusFilter"><option value="active">Active</option><option value="all">All</option><option value="inactive">Archived</option></select>
+        </div>
+        <div class="member-directory" id="memberDirectory">${source.length ? source.map(m=>memberDirectoryRow(m,editable)).join('') : '<div class="member-empty">No members are available yet.</div>'}</div>
+        <div class="member-empty" id="memberNoResults" hidden>No members match these filters.</div>
+      </div>
+    </section>
+    ${editable?memberEditorModal():''}
+  </div>`;
+}
+
+function memberDirectoryRow(m,editable) {
+  const active=m.active!==false;
+  const grade=m.school_grade ?? m.grade ?? '';
+  const memberClass=m.current_class_level_id ? className(m.current_class_level_id) : (m.class || 'No class');
+  const memberUnit=m.unit_id ? unitName(m.unit_id) : (state.mode==='demo' ? state.unit?.name || 'Demo unit' : 'No unit');
+  const searchText=`${m.full_name||''} ${memberClass} ${memberUnit} ${grade}`.toLowerCase();
+  return `<div class="member-directory-row ${active?'':'inactive'}" data-directory-member data-search="${esc(searchText)}" data-unit="${esc(m.unit_id||'')}" data-active="${active?'1':'0'}">
+    <div class="member-avatar">${initials(m.full_name)}</div>
+    <div class="member-main"><strong>${esc(m.full_name)}</strong><small>${grade ? `Grade ${grade}` : 'Grade not set'} · ${esc(memberClass)}</small></div>
+    <div class="member-meta member-unit"><small>Unit</small><strong>${esc(memberUnit)}</strong></div>
+    <div><span class="status-pill ${active?'':'inactive'}">${active?'Active':'Archived'}</span></div>
+    <div>${editable?`<button class="btn btn-ghost" data-edit-member="${m.id}">Edit</button>`:''}</div>
+  </div>`;
+}
+
+function memberEditorModal() {
+  return `<div class="member-modal" id="memberModal" hidden>
+    <div class="member-modal-card">
+      <div class="member-modal-head"><div><div class="eyebrow">Roster</div><h2 id="memberModalTitle">Add Pathfinder</h2></div><button class="icon-btn" type="button" id="closeMemberModal" aria-label="Close">×</button></div>
+      <form class="member-form" id="memberForm">
+        <input type="hidden" id="memberId">
+        <div class="member-form-grid">
+          <div class="field full"><label for="memberName">Full name</label><input id="memberName" maxlength="120" required placeholder="Pathfinder name"></div>
+          <div class="field"><label for="memberGrade">School grade</label><select id="memberGrade" required><option value="">Select grade</option>${Array.from({length:12},(_,i)=>i+1).map(g=>`<option value="${g}">Grade ${g}</option>`).join('')}</select></div>
+          <div class="field"><label for="memberClass">Pathfinder class</label><select id="memberClass"><option value="">Select class</option>${(state.classLevels||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="form-hint" id="classSuggestion">Select a grade to suggest a class.</div></div>
+          <div class="field full"><label for="memberUnit">Unit</label><select id="memberUnit" required><option value="">Select unit</option>${(state.units||[]).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-message" id="memberFormMessage"></div>
+        <div class="member-form-actions"><button class="btn btn-ghost" type="button" id="archiveMemberBtn" hidden>Archive Pathfinder</button><div class="member-form-actions-right"><button class="btn btn-ghost" type="button" id="cancelMemberBtn">Cancel</button><button class="btn btn-primary" type="submit" id="saveMemberBtn" style="width:auto">Save Pathfinder</button></div></div>
+      </form>
+    </div>
+  </div>`;
+}
+
+function filterMemberDirectory() {
+  const q=(document.getElementById('memberSearch')?.value || '').trim().toLowerCase();
+  const unit=document.getElementById('memberUnitFilter')?.value || '';
+  const status=document.getElementById('memberStatusFilter')?.value || 'active';
+  let shown=0;
+  document.querySelectorAll('[data-directory-member]').forEach(row=>{
+    const matchesText=!q || (row.dataset.search||'').includes(q);
+    const matchesUnit=!unit || row.dataset.unit===unit;
+    const isActive=row.dataset.active==='1';
+    const matchesStatus=status==='all' || (status==='active'&&isActive) || (status==='inactive'&&!isActive);
+    const show=matchesText&&matchesUnit&&matchesStatus;
+    row.hidden=!show; if(show) shown++;
+  });
+  const empty=document.getElementById('memberNoResults'); if(empty) empty.hidden=shown!==0;
+}
+
+function updateClassSuggestion(autoApply=false) {
+  const grade=document.getElementById('memberGrade')?.value;
+  const suggested=classForGrade(grade);
+  const hint=document.getElementById('classSuggestion');
+  const select=document.getElementById('memberClass');
+  if(suggested) {
+    if(hint) hint.textContent=`Suggested from Grade ${grade}: ${suggested.name}`;
+    if(autoApply && select) select.value=suggested.id;
+  } else if(hint) hint.textContent='No automatic Pathfinder class mapping for this grade. Choose a class manually if needed.';
+}
+
+function openMemberEditor(id=null) {
+  const modal=document.getElementById('memberModal'); if(!modal) return;
+  const m=id ? state.allMembers.find(x=>String(x.id)===String(id)) : null;
+  document.getElementById('memberModalTitle').textContent=m?'Edit Pathfinder':'Add Pathfinder';
+  document.getElementById('memberId').value=m?.id || '';
+  document.getElementById('memberName').value=m?.full_name || '';
+  document.getElementById('memberGrade').value=m?.school_grade || '';
+  document.getElementById('memberClass').value=m?.current_class_level_id || '';
+  document.getElementById('memberUnit').value=m?.unit_id || activeUnitId() || '';
+  const archive=document.getElementById('archiveMemberBtn');
+  if(archive) { archive.hidden=!m; archive.textContent=m?.active===false?'Reactivate Pathfinder':'Archive Pathfinder'; }
+  document.getElementById('memberFormMessage').textContent='';
+  modal.hidden=false;
+  updateClassSuggestion(!m);
+  setTimeout(()=>document.getElementById('memberName')?.focus(),0);
+}
+function closeMemberEditor(){ const modal=document.getElementById('memberModal'); if(modal) modal.hidden=true; }
+
+async function refreshMembersFromDb() {
+  state.allMembers = await sb(`members?club_id=eq.${encodeURIComponent(state.user.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,class_levels(name)&order=full_name`, state.token);
+  await loadSelectedUnit(state.meeting?.rawDate || localISODate());
+}
+
+async function saveMemberForm(e) {
+  e.preventDefault();
+  const msg=document.getElementById('memberFormMessage');
+  const btn=document.getElementById('saveMemberBtn');
+  const id=document.getElementById('memberId').value;
+  const fullName=document.getElementById('memberName').value.trim();
+  const schoolGrade=Number(document.getElementById('memberGrade').value);
+  const currentClass=document.getElementById('memberClass').value || null;
+  const unitId=document.getElementById('memberUnit').value;
+  if(!fullName || !schoolGrade || !unitId) { msg.textContent='Name, school grade and unit are required.'; return; }
+  btn.disabled=true; btn.textContent='Saving…'; msg.textContent='';
+  try {
+    const payload={ full_name:fullName, school_grade:schoolGrade, current_class_level_id:currentClass, unit_id:unitId };
+    if(id) {
+      await sbWrite(`members?id=eq.${encodeURIComponent(id)}`, state.token, {method:'PATCH',body:payload,prefer:'return=representation'});
+    } else {
+      await sbWrite('members', state.token, {body:[{...payload,club_id:state.user.club_id,active:true}],prefer:'return=representation'});
+    }
+    await refreshMembersFromDb();
+    closeMemberEditor();
+    renderApp();
+  } catch(err) {
+    console.error(err); msg.textContent=err.message || 'Member could not be saved.'; btn.disabled=false; btn.textContent='Save Pathfinder';
+  }
+}
+
+async function toggleMemberArchive() {
+  const id=document.getElementById('memberId')?.value; if(!id) return;
+  const member=state.allMembers.find(x=>String(x.id)===String(id)); if(!member) return;
+  const nextActive=member.active===false;
+  const btn=document.getElementById('archiveMemberBtn');
+  btn.disabled=true; btn.textContent=nextActive?'Reactivating…':'Archiving…';
+  try {
+    await sbWrite(`members?id=eq.${encodeURIComponent(id)}`, state.token, {method:'PATCH',body:{active:nextActive},prefer:'return=representation'});
+    await refreshMembersFromDb(); closeMemberEditor(); renderApp();
+  } catch(err) {
+    console.error(err); document.getElementById('memberFormMessage').textContent=err.message || 'Member status could not be updated.'; btn.disabled=false; btn.textContent=nextActive?'Reactivate Pathfinder':'Archive Pathfinder';
+  }
 }
 
 function meetingView() {
@@ -556,7 +773,7 @@ function meetingView() {
 function scoreCard(m) {
   const total = memberPoints(m);
   return `<section class="score-person" data-member="${m.id}">
-    <div class="score-person-head"><div><strong>${m.full_name}</strong><small style="color:var(--muted)">${m.class}${m.grade?` · Grade ${m.grade}`:''}</small></div><button class="presence-toggle ${m.present?'':'absent'}" data-presence="${m.id}">${m.present?'Present':'Absent'}</button></div>
+    <div class="score-person-head"><div><strong>${esc(m.full_name)}</strong><small style="color:var(--muted)">${esc(m.class)}${m.grade?` · Grade ${m.grade}`:''}</small></div><button class="presence-toggle ${m.present?'':'absent'}" data-presence="${m.id}">${m.present?'Present':'Absent'}</button></div>
     <div class="criteria">${scoreCategories.map(c=>`<button class="criterion ${m.scores?.[c.key]?'active':''}" ${m.present?'':'disabled'} data-score="${m.id}" data-key="${c.key}"><strong>${c.icon} ${c.name}</strong>${m.scores?.[c.key]?'✓ ':''}${c.points} pts</button>`).join('')}</div>
     <div class="person-total">${total} / ${m.present?maxScore():0} pts</div>
   </section>`;
@@ -564,13 +781,24 @@ function scoreCard(m) {
 
 function renderApp() {
   if(!state) return loginView();
-  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():dashboardView()}</main></div>${bottomNav()}`;
+  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():dashboardView())}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
   ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(err.message || 'Unit could not be loaded.'); renderApp(); } }; });
   document.querySelectorAll('[data-presence]').forEach(btn=>btn.onclick=()=>togglePresence(btn.dataset.presence));
   document.querySelectorAll('[data-score]').forEach(btn=>btn.onclick=()=>toggleScore(btn.dataset.score,btn.dataset.key));
   const save = document.getElementById('saveMeeting'); if(save) save.onclick = ()=>saveMeeting(save);
+  const addMember=document.getElementById('addMemberBtn'); if(addMember) addMember.onclick=()=>openMemberEditor();
+  const addMemberMobile=document.getElementById('addMemberBtnMobile'); if(addMemberMobile) addMemberMobile.onclick=()=>openMemberEditor();
+  document.querySelectorAll('[data-edit-member]').forEach(btn=>btn.onclick=()=>openMemberEditor(btn.dataset.editMember));
+  ['memberSearch','memberUnitFilter','memberStatusFilter'].forEach(id=>{ const el=document.getElementById(id); if(el) el.oninput=filterMemberDirectory; if(el && el.tagName==='SELECT') el.onchange=filterMemberDirectory; });
+  const memberGrade=document.getElementById('memberGrade'); if(memberGrade) memberGrade.onchange=()=>updateClassSuggestion(true);
+  const memberForm=document.getElementById('memberForm'); if(memberForm) memberForm.onsubmit=saveMemberForm;
+  const closeMember=document.getElementById('closeMemberModal'); if(closeMember) closeMember.onclick=closeMemberEditor;
+  const cancelMember=document.getElementById('cancelMemberBtn'); if(cancelMember) cancelMember.onclick=closeMemberEditor;
+  const archiveMember=document.getElementById('archiveMemberBtn'); if(archiveMember) archiveMember.onclick=toggleMemberArchive;
+  const memberModal=document.getElementById('memberModal'); if(memberModal) memberModal.onclick=e=>{ if(e.target===memberModal) closeMemberEditor(); };
+  if(route==='members') filterMemberDirectory();
 }
 
 function bindNavigation(){ document.querySelectorAll('[data-route]').forEach(el=>el.onclick=()=>{ route=el.dataset.route; renderApp(); }); }
@@ -660,7 +888,7 @@ function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=
   const params = new URLSearchParams(location.search);
   if(params.get('demo') === '1') {
     state = structuredClone(demoState);
-    route = params.get('view') === 'meeting' ? 'meeting' : 'dashboard';
+    route = ['meeting','members'].includes(params.get('view')) ? params.get('view') : 'dashboard';
     renderApp();
   } else {
     const token = localStorage.getItem('pt_access_token');
