@@ -388,6 +388,49 @@ button { cursor: pointer; }
 @media (max-width:900px){ .unit-grid { grid-template-columns:1fr 1fr; } }
 @media (max-width:600px){ .unit-grid { grid-template-columns:1fr; } .unit-metrics { grid-template-columns:repeat(3,1fr); } }
 
+.scoreboard-page { max-width:1120px; }
+.scoreboard-hero { display:grid; grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(120px,.55fr)); gap:12px; align-items:stretch; margin-bottom:16px; }
+.scoreboard-leader { border-radius:24px; padding:22px; background:linear-gradient(135deg,var(--forest-900),var(--forest-700)); color:white; min-height:154px; display:flex; flex-direction:column; justify-content:space-between; }
+.scoreboard-leader .eyebrow { color:#dfeae5; }
+.scoreboard-leader h2 { margin:7px 0 4px; font-size:28px; letter-spacing:-.035em; }
+.scoreboard-leader p { margin:0; color:#dce8e3; font-size:12px; }
+.scoreboard-leader-points { display:flex; gap:10px; align-items:baseline; margin-top:20px; }
+.scoreboard-leader-points strong { font-size:36px; line-height:1; }
+.scoreboard-leader-points span { font-size:12px; color:#dce8e3; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
+.scoreboard-kpi { background:white; border:1px solid var(--line); border-radius:20px; padding:18px; box-shadow:0 8px 26px rgba(23,63,50,.045); display:flex; flex-direction:column; justify-content:center; }
+.scoreboard-kpi span { color:var(--muted); font-size:10px; font-weight:850; text-transform:uppercase; letter-spacing:.05em; }
+.scoreboard-kpi strong { display:block; margin-top:8px; font-size:27px; color:var(--forest-900); }
+.scoreboard-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr); gap:14px; }
+.scoreboard-card { background:white; border:1px solid var(--line); border-radius:22px; box-shadow:0 8px 26px rgba(23,63,50,.045); overflow:hidden; }
+.scoreboard-card-head { padding:18px 18px 14px; border-bottom:1px solid var(--line); }
+.scoreboard-card-head h3 { margin:0; font-size:17px; }
+.scoreboard-card-head p { margin:5px 0 0; color:var(--muted); font-size:11px; line-height:1.45; }
+.scoreboard-list { display:grid; }
+.scoreboard-row { display:grid; grid-template-columns:48px minmax(0,1fr) minmax(160px,.7fr) 110px; gap:13px; align-items:center; padding:15px 18px; border-bottom:1px solid var(--line); }
+.scoreboard-row:last-child { border-bottom:0; }
+.scoreboard-row.archived { opacity:.62; background:#fafbfa; }
+.scoreboard-rank { width:34px; height:34px; border-radius:12px; display:grid; place-items:center; font-weight:900; background:var(--forest-100); color:var(--forest-800); }
+.scoreboard-row:first-child .scoreboard-rank { background:var(--amber-soft); color:#7b5d22; }
+.scoreboard-unit strong { display:block; font-size:14px; }
+.scoreboard-unit small { display:block; color:var(--muted); margin-top:4px; font-size:10px; }
+.scoreboard-progress { display:grid; gap:6px; }
+.scoreboard-progress-label { display:flex; justify-content:space-between; gap:10px; color:var(--muted); font-size:10px; }
+.scoreboard-progress-label strong { color:var(--forest-800); }
+.scoreboard-points { text-align:right; }
+.scoreboard-points strong { display:block; font-size:22px; color:var(--forest-900); }
+.scoreboard-points small { color:var(--muted); font-size:10px; }
+.scoreboard-meetings { display:grid; }
+.scoreboard-meeting-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:13px 16px; border-bottom:1px solid var(--line); align-items:center; }
+.scoreboard-meeting-row:last-child { border-bottom:0; }
+.scoreboard-meeting-row strong { display:block; font-size:12px; }
+.scoreboard-meeting-row small { display:block; color:var(--muted); margin-top:4px; font-size:10px; }
+.scoreboard-meeting-score { text-align:right; white-space:nowrap; }
+.scoreboard-meeting-score strong { font-size:15px; color:var(--forest-800); }
+.scoreboard-note { margin-top:14px; padding:12px 14px; border:1px solid #f1ddb8; background:var(--amber-soft); border-radius:16px; color:#775d31; font-size:11px; line-height:1.5; }
+.scoreboard-empty { padding:28px 18px; text-align:center; color:var(--muted); font-size:12px; }
+@media (max-width:960px){ .scoreboard-hero { grid-template-columns:1fr 1fr; } .scoreboard-leader { grid-column:1/-1; } .scoreboard-grid { grid-template-columns:1fr; } }
+@media (max-width:650px){ .scoreboard-hero { grid-template-columns:1fr 1fr; } .scoreboard-row { grid-template-columns:38px minmax(0,1fr) 82px; } .scoreboard-progress { grid-column:2/4; } .scoreboard-kpi { padding:14px; } .scoreboard-kpi strong { font-size:23px; } }
+
   </style>
 </head>
 <body>
@@ -712,6 +755,10 @@ async function loadAuthenticatedState(token) {
     staffClassLinks,
     meetings,
     meeting:null,
+    scoreboardMeetings:[],
+    scoreboardScores:[],
+    scoreboardAttendance:[],
+    scoreboardLoaded:false,
   };
 
   await loadSelectedUnit(today);
@@ -781,6 +828,7 @@ function sidebar() {
       <button class="${route==='members'?'active':''}" data-route="members">♙ Members</button>
       <button class="${route==='classes'?'active':''}" data-route="classes">◫ Classes</button>
       ${state.user.role==='director'?`<button class="${route==='units'?'active':''}" data-route="units">◇ Units</button>`:''}
+      ${state.user.role==='director'?`<button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★ Scoreboard</button>`:''}
       ${state.user.role==='director'?`<button class="${route==='staff'?'active':''}" data-route="staff">♜ Staff</button>`:''}
       ${state.user.role==='director'?'<button>⚙ Settings</button>':''}
     </nav>
@@ -790,7 +838,7 @@ function sidebar() {
 }
 
 function mobileTop(){ return `<div class="mobile-top">${brand()}<div class="avatar">${initials(state.user.full_name)}</div></div>`; }
-function bottomNav(){ const admin=state.user.role==='director'; return `<nav class="bottom-nav" style="grid-template-columns:repeat(${admin?6:4},1fr)"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button>`:''}</nav>`; }
+function bottomNav(){ const admin=state.user.role==='director'; return `<nav class="bottom-nav" style="grid-template-columns:repeat(${admin?7:4},1fr)"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★<br>Scores</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button>`:''}</nav>`; }
 
 function dashboardView() {
   const members = state.members || [];
@@ -989,6 +1037,107 @@ async function toggleMemberArchive() {
 
 
 
+
+async function loadScoreboardData(force=false){
+  if(!state || state.mode!=='live' || state.user.role!=='director') return;
+  if(state.scoreboardLoaded && !force) return;
+  const year=state.clubYear;
+  let meetingQuery=`meetings?club_id=eq.${encodeURIComponent(state.user.club_id)}&select=id,meeting_date,title,unit_id,club_year_id&order=meeting_date.asc`;
+  if(year?.start_date) meetingQuery+=`&meeting_date=gte.${encodeURIComponent(year.start_date)}`;
+  if(year?.end_date) meetingQuery+=`&meeting_date=lte.${encodeURIComponent(year.end_date)}`;
+  const meetings=await sb(meetingQuery,state.token);
+  const ids=meetings.map(m=>String(m.id));
+  const scores=[]; const attendance=[];
+  for(let i=0;i<ids.length;i+=40){
+    const chunk=ids.slice(i,i+40).join(',');
+    const [scoreRows,attendanceRows]=await Promise.all([
+      sb(`meeting_scores?meeting_id=in.(${chunk})&select=meeting_id,member_id,category_id,points_awarded,max_points_snapshot`,state.token),
+      sb(`attendance?meeting_id=in.(${chunk})&select=meeting_id,member_id,present`,state.token),
+    ]);
+    scores.push(...scoreRows); attendance.push(...attendanceRows);
+  }
+  state.scoreboardMeetings=meetings;
+  state.scoreboardScores=scores;
+  state.scoreboardAttendance=attendance;
+  state.scoreboardLoaded=true;
+}
+
+function scoreboardSnapshot(){
+  const units=(state.units||[]).map(u=>({
+    id:u.id,name:u.name,active:u.active!==false,
+    members:unitMembers(u.id,true).length,
+    points:0,possible:0,meetings:0,present:0,attendanceRecords:0,
+  }));
+  const byUnit=new Map(units.map(u=>[String(u.id),u]));
+  const scoresByMeeting=new Map();
+  const attendanceByMeeting=new Map();
+  for(const row of state.scoreboardScores||[]){
+    const key=String(row.meeting_id);
+    if(!scoresByMeeting.has(key)) scoresByMeeting.set(key,[]);
+    scoresByMeeting.get(key).push(row);
+  }
+  for(const row of state.scoreboardAttendance||[]){
+    const key=String(row.meeting_id);
+    if(!attendanceByMeeting.has(key)) attendanceByMeeting.set(key,[]);
+    attendanceByMeeting.get(key).push(row);
+  }
+  const meetingRows=[];
+  for(const meeting of state.scoreboardMeetings||[]){
+    const unit=byUnit.get(String(meeting.unit_id));
+    if(!unit) continue;
+    const rows=scoresByMeeting.get(String(meeting.id))||[];
+    if(!rows.length) continue;
+    const earned=rows.reduce((sum,row)=>sum+Number(row.points_awarded||0),0);
+    const possible=rows.reduce((sum,row)=>sum+Number(row.max_points_snapshot||0),0);
+    const att=attendanceByMeeting.get(String(meeting.id))||[];
+    const present=att.filter(a=>a.present===true).length;
+    unit.points+=earned; unit.possible+=possible; unit.meetings+=1;
+    unit.present+=present; unit.attendanceRecords+=att.length;
+    meetingRows.push({
+      id:meeting.id,unit_id:meeting.unit_id,unit_name:unit.name,date:meeting.meeting_date,title:meeting.title,
+      earned,possible,efficiency:possible?Math.round(earned/possible*1000)/10:0,
+      present,attendanceRecords:att.length,
+    });
+  }
+  for(const unit of units){
+    unit.efficiency=unit.possible?Math.round(unit.points/unit.possible*1000)/10:0;
+    unit.attendancePct=unit.attendanceRecords?Math.round(unit.present/unit.attendanceRecords*1000)/10:0;
+    unit.avgPerMeeting=unit.meetings?Math.round(unit.points/unit.meetings*10)/10:0;
+  }
+  const ranked=units
+    .filter(u=>u.active || u.points>0)
+    .sort((a,b)=>b.points-a.points || b.efficiency-a.efficiency || a.name.localeCompare(b.name))
+    .map((u,index)=>({...u,rank:index+1}));
+  meetingRows.sort((a,b)=>String(b.date).localeCompare(String(a.date)) || b.earned-a.earned || a.unit_name.localeCompare(b.unit_name));
+  return {ranked,meetingRows};
+}
+
+function scoreboardView(){
+  if(state.mode!=='live' || state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">The club-wide scoreboard is available to the club director.</div>`;
+  if(!state.scoreboardLoaded) return `${mobileTop()}<div class="scoreboard-page"><div class="topbar"><div><div class="eyebrow">Unit competition</div><h1>Unit Scoreboard</h1><p>Loading saved meeting scores…</p></div></div><div class="member-empty">Loading scoreboard…</div></div>`;
+  const {ranked,meetingRows}=scoreboardSnapshot();
+  const leader=ranked.find(u=>u.points>0)||null;
+  const totalPoints=ranked.reduce((sum,u)=>sum+u.points,0);
+  const totalPossible=ranked.reduce((sum,u)=>sum+u.possible,0);
+  const clubEfficiency=totalPossible?Math.round(totalPoints/totalPossible*1000)/10:0;
+  const scoredMeetings=meetingRows.length;
+  const topPoints=Math.max(1,...ranked.map(u=>u.points));
+  const yearLabel=state.clubYear?.label || 'Current club year';
+  const leaderBlock=leader?`<div class="scoreboard-leader"><div><div class="eyebrow">Current leader · ${esc(yearLabel)}</div><h2>${esc(leader.name)}</h2><p>${leader.meetings} scored meeting${leader.meetings===1?'':'s'} · ${leader.efficiency}% efficiency</p></div><div class="scoreboard-leader-points"><strong>${leader.points}</strong><span>accumulated points</span></div></div>`:`<div class="scoreboard-leader"><div><div class="eyebrow">${esc(yearLabel)}</div><h2>Ready to compete</h2><p>The leaderboard starts as soon as a meeting with scores is saved.</p></div><div class="scoreboard-leader-points"><strong>0</strong><span>accumulated points</span></div></div>`;
+  const list=ranked.map(u=>{
+    const relative=Math.round(u.points/topPoints*100);
+    return `<div class="scoreboard-row ${u.active?'':'archived'}"><div class="scoreboard-rank">${u.rank}</div><div class="scoreboard-unit"><strong>${esc(u.name)}</strong><small>${u.members} active Pathfinder${u.members===1?'':'s'} · ${u.meetings} scored meeting${u.meetings===1?'':'s'}${u.active?'':' · Archived'}</small></div><div class="scoreboard-progress"><div class="scoreboard-progress-label"><span>${u.efficiency}% efficiency</span><strong>${u.attendanceRecords?`${u.attendancePct}% attendance`:'No attendance yet'}</strong></div><div class="progress"><span style="width:${relative}%"></span></div></div><div class="scoreboard-points"><strong>${u.points}</strong><small>points</small></div></div>`;
+  }).join('');
+  const recent=meetingRows.slice(0,10).map(m=>`<div class="scoreboard-meeting-row"><div><strong>${esc(m.unit_name)}</strong><small>${esc(formatMeetingDate(m.date))} · ${m.present}/${m.attendanceRecords || 0} present</small></div><div class="scoreboard-meeting-score"><strong>${m.earned} pts</strong><small>${m.efficiency}% of ${m.possible}</small></div></div>`).join('');
+  return `${mobileTop()}<div class="scoreboard-page">
+    <div class="topbar"><div><div class="eyebrow">Unit competition</div><h1>Unit Scoreboard</h1><p>${esc(yearLabel)} · Ranking by accumulated saved meeting points.</p></div><div class="top-actions"><button class="btn btn-ghost" id="refreshScoreboardBtn" style="width:auto">↻ Refresh scores</button></div></div>
+    <section class="scoreboard-hero">${leaderBlock}<div class="scoreboard-kpi"><span>Club points</span><strong>${totalPoints}</strong></div><div class="scoreboard-kpi"><span>Scored meetings</span><strong>${scoredMeetings}</strong></div><div class="scoreboard-kpi"><span>Club efficiency</span><strong>${clubEfficiency}%</strong></div></section>
+    <section class="scoreboard-grid"><div class="scoreboard-card"><div class="scoreboard-card-head"><h3>Leaderboard</h3><p>Total points determine rank. Efficiency is shown alongside so units of different sizes can still be compared fairly.</p></div><div class="scoreboard-list">${list || '<div class="scoreboard-empty">No units are available for the scoreboard yet.</div>'}</div></div>
+    <div class="scoreboard-card"><div class="scoreboard-card-head"><h3>Recent scoring</h3><p>Only meetings with saved score rows count toward accumulated points.</p></div><div class="scoreboard-meetings">${recent || '<div class="scoreboard-empty">No scored meetings yet.</div>'}</div></div></section>
+    <div class="scoreboard-note"><strong>How ranking works:</strong> accumulated points are the sum of saved meeting scores for the active club year. Historical maximum values come from each meeting's snapshot, so later scoring-rule changes do not rewrite earlier results.</div>
+  </div>`;
+}
+
 function unitMembers(unitId,activeOnly=true){
   return (state.allMembers||[]).filter(m=>String(m.unit_id)===String(unitId) && (!activeOnly || m.active!==false));
 }
@@ -1006,8 +1155,8 @@ function unitsView(){
   const assignedMembers=(state.allMembers||[]).filter(m=>m.active!==false&&m.unit_id).length;
   const assignedCounselors=(state.staff||[]).filter(p=>p.active!==false&&p.role==='instructor'&&p.unit_id).length;
   return `${mobileTop()}<div class="units-page">
-    <div class="topbar"><div><div class="eyebrow">Club structure</div><h1>Units / Unidades</h1><p>Create units, assign counselors and review each unit's roster and class progress.</p></div><div class="top-actions"><button class="btn btn-primary" id="addUnitBtn" style="width:auto">+ Add unit</button></div></div>
-    <div class="mobile-unit-picker"><button class="btn btn-primary" id="addUnitBtnMobile" style="width:100%">+ Add unit</button></div>
+    <div class="topbar"><div><div class="eyebrow">Club structure</div><h1>Units / Unidades</h1><p>Create units, assign counselors and review each unit's roster and class progress.</p></div><div class="top-actions"><button class="btn btn-ghost" data-route="scoreboard" style="width:auto">★ Scoreboard</button><button class="btn btn-primary" id="addUnitBtn" style="width:auto">+ Add unit</button></div></div>
+    <div class="mobile-unit-picker" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="btn btn-ghost" data-route="scoreboard">★ Scoreboard</button><button class="btn btn-primary" id="addUnitBtnMobile">+ Add unit</button></div>
     <section class="members-summary"><div class="mini-stat"><span>Active units</span><strong>${activeCount}</strong></div><div class="mini-stat"><span>Archived</span><strong>${archivedCount}</strong></div><div class="mini-stat"><span>Assigned Pathfinders</span><strong>${assignedMembers}</strong></div><div class="mini-stat"><span>Counselors</span><strong>${assignedCounselors}</strong></div></section>
     <section class="unit-grid">${units.length?units.map(unitCard).join(''):'<div class="member-empty">No units have been created yet.</div>'}</section>
     ${unitEditorModal()}
@@ -1415,7 +1564,7 @@ function scoreCard(m) {
 
 function renderApp() {
   if(!state) return loginView();
-  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='staff'?staffView():dashboardView()))))}</main></div>${bottomNav()}`;
+  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():dashboardView())))))}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
   ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(err.message || 'Unit could not be loaded.'); renderApp(); } }; });
@@ -1452,10 +1601,11 @@ function renderApp() {
   const cancelStaff=document.getElementById('cancelStaffBtn'); if(cancelStaff) cancelStaff.onclick=closeStaffEditor;
   const staffActive=document.getElementById('staffActiveBtn'); if(staffActive) staffActive.onclick=toggleStaffActive;
   const staffModal=document.getElementById('staffModal'); if(staffModal) staffModal.onclick=e=>{ if(e.target===staffModal) closeStaffEditor(); };
+  const refreshScoreboard=document.getElementById('refreshScoreboardBtn'); if(refreshScoreboard) refreshScoreboard.onclick=async()=>{ refreshScoreboard.disabled=true; refreshScoreboard.textContent='Refreshing…'; try{ await loadScoreboardData(true); renderApp(); }catch(err){ console.error(err); alert(err.message||'Scoreboard could not be refreshed.'); refreshScoreboard.disabled=false; refreshScoreboard.textContent='↻ Refresh scores'; } };
   if(route==='members') filterMemberDirectory();
 }
 
-function bindNavigation(){ document.querySelectorAll('[data-route]').forEach(el=>el.onclick=()=>{ route=el.dataset.route; renderApp(); }); }
+function bindNavigation(){ document.querySelectorAll('[data-route]').forEach(el=>el.onclick=async()=>{ route=el.dataset.route; renderApp(); if(route==='scoreboard' && state?.mode==='live' && state?.user?.role==='director' && !state.scoreboardLoaded){ try{ await loadScoreboardData(); renderApp(); }catch(err){ console.error(err); alert(err.message||'Scoreboard could not be loaded.'); } } }); }
 function togglePresence(id){ const m=state.members.find(x=>String(x.id)===String(id)); m.present=!m.present; if(!m.present) Object.keys(m.scores||{}).forEach(k=>m.scores[k]=false); else scoreCategories.forEach(c=>m.scores[c.key]=true); renderApp(); }
 function toggleScore(id,key){ const m=state.members.find(x=>String(x.id)===String(id)); if(!m.present) return; m.scores ||= {}; m.scores[key]=!m.scores[key]; renderApp(); }
 async function saveMeeting(btn){
@@ -1527,6 +1677,7 @@ async function saveMeeting(btn){
       prefer:'resolution=merge-duplicates,return=minimal'
     });
 
+    state.scoreboardLoaded=false;
     btn.textContent='Saved ✓';
     setTimeout(()=>{btn.disabled=false;btn.textContent=original;},1600);
   } catch(err) {
