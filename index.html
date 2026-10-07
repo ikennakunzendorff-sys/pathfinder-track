@@ -275,6 +275,11 @@ button { cursor: pointer; }
 .member-form label { display:block; font-size:12px; font-weight:800; margin-bottom:7px; }
 .member-form input, .member-form select { width:100%; }
 .form-hint { margin-top:7px; color:var(--muted); font-size:12px; line-height:1.45; }
+.staff-activation-panel { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #d9e5df; border-radius:15px; background:#f5faf7; }
+.staff-activation-panel[hidden] { display:none !important; }
+.staff-activation-panel strong { display:block; font-size:12px; color:var(--forest-900); }
+.staff-activation-panel small { display:block; margin-top:3px; color:var(--muted); font-size:11px; line-height:1.4; }
+.staff-activation-panel .btn { width:auto; flex:0 0 auto; }
 .member-form-actions { display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:22px; padding-top:18px; border-top:1px solid var(--line); }
 .member-form-actions-right { display:flex; gap:10px; }
 .member-empty { background:white; border:1px dashed #cfd8d3; border-radius:20px; padding:36px 18px; text-align:center; color:var(--muted); }
@@ -346,6 +351,8 @@ button { cursor: pointer; }
   .member-form .field.full { grid-column:auto; }
   .member-form-actions { align-items:stretch; flex-direction:column-reverse; }
   .member-form-actions-right { display:grid; grid-template-columns:1fr 1fr; }
+  .staff-activation-panel { display:grid; grid-template-columns:1fr; }
+  .staff-activation-panel .btn { width:100%; }
   .members-toolbar { display:grid; grid-template-columns:1fr 1fr; }
   .members-toolbar .search-box { min-width:0; grid-column:1/-1; }
 }
@@ -905,6 +912,8 @@ const UI_TRANSLATIONS_AUDIT = {
     "Access status could not be updated.":"O status de acesso não pôde ser atualizado.",
     "Account activation failed.":"Falha na ativação da conta.",
     "Activation email could not be sent.":"O e-mail de ativação não pôde ser enviado.",
+    "Account activation":"Ativação da conta",
+    "Send a fresh activation link to this staff member.":"Envie um novo link de ativação para este membro da diretoria.",
     "Member could not be saved.":"O Desbravador não pôde ser salvo.",
     "Member status could not be updated.":"O status do Desbravador não pôde ser atualizado.",
     "Requirement status could not be saved.":"O status do requisito não pôde ser salvo.",
@@ -1007,6 +1016,8 @@ const UI_TRANSLATIONS_AUDIT = {
     "Access status could not be updated.":"No se pudo actualizar el estado de acceso.",
     "Account activation failed.":"Falló la activación de la cuenta.",
     "Activation email could not be sent.":"No se pudo enviar el correo de activación.",
+    "Account activation":"Activación de cuenta",
+    "Send a fresh activation link to this staff member.":"Envía un nuevo enlace de activación a este miembro de la directiva.",
     "Member could not be saved.":"No se pudo guardar el Conquistador.",
     "Member status could not be updated.":"No se pudo actualizar el estado del Conquistador.",
     "Requirement status could not be saved.":"No se pudo guardar el estado del requisito.",
@@ -2332,6 +2343,10 @@ function staffEditorModal(){
       <div class="member-form-grid">
         <div class="field full"><label for="staffName">Full name</label><input id="staffName" maxlength="120" required placeholder="Leader name"></div>
         <div class="field full"><label for="staffEmail">Email</label><input id="staffEmail" type="email" required placeholder="leader@example.com"><div class="form-hint" id="staffEmailHint">New staff receive an invitation by email. Existing Pathfinder Track accounts are reused.</div></div>
+        <div class="staff-activation-panel" id="staffActivationPanel" hidden>
+          <div><strong>Account activation</strong><small>Send a fresh activation link to this staff member.</small></div>
+          <button class="btn btn-ghost" type="button" id="staffResendBtn">Resend activation</button>
+        </div>
         <div class="field"><label for="staffTitle">Club role / title</label><input id="staffTitle" list="staffTitleOptions" maxlength="80" placeholder="e.g. Secretary"><datalist id="staffTitleOptions"><option value="Director" label="${translateUiString('Director')}"><option value="Associate Director" label="${translateUiString('Associate Director')}"><option value="Secretary" label="${translateUiString('Secretary')}"><option value="Counselor" label="${translateUiString('Counselor')}"><option value="Instructor" label="${translateUiString('Instructor')}"><option value="Chaplain" label="${translateUiString('Chaplain')}"><option value="Treasurer" label="${translateUiString('Treasurer')}"></datalist></div>
         <div class="field"><label for="staffRole">System access</label><select id="staffRole"><option value="director">Admin — whole club</option><option value="instructor" selected>Instructor — assigned scope</option><option value="viewer">Viewer — limited access</option></select></div>
         <div class="field full staff-scope" id="staffScopeWrap">
@@ -2340,7 +2355,7 @@ function staffEditorModal(){
         </div>
       </div>
       <div class="form-message" id="staffFormMessage"></div>
-      <div class="member-form-actions"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" type="button" id="staffActiveBtn" hidden>Deactivate access</button><button class="btn btn-ghost" type="button" id="staffResendBtn" hidden>Resend activation</button></div><div class="member-form-actions-right"><button class="btn btn-ghost" type="button" id="cancelStaffBtn">Cancel</button><button class="btn btn-primary" type="submit" id="saveStaffBtn" style="width:auto">Send invitation</button></div></div>
+      <div class="member-form-actions"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" type="button" id="staffActiveBtn" hidden>Deactivate access</button></div><div class="member-form-actions-right"><button class="btn btn-ghost" type="button" id="cancelStaffBtn">Cancel</button><button class="btn btn-primary" type="submit" id="saveStaffBtn" style="width:auto">Send invitation</button></div></div>
     </form>
   </div></div>`;
 }
@@ -2366,8 +2381,10 @@ function openStaffEditor(id=null){
   document.querySelectorAll('[data-staff-class]').forEach(cb=>cb.checked=selected.has(String(cb.value)));
   const activeBtn=document.getElementById('staffActiveBtn');
   activeBtn.hidden=!p || !!self; activeBtn.disabled=false; activeBtn.textContent=p?.active===false?'Reactivate access':'Deactivate access';
+  const activationPanel=document.getElementById('staffActivationPanel');
   const resendBtn=document.getElementById('staffResendBtn');
-  resendBtn.hidden=!p || !!self; resendBtn.disabled=false; resendBtn.textContent='Resend activation';
+  if(activationPanel) activationPanel.hidden=!p || !!self;
+  resendBtn.disabled=false; resendBtn.textContent='Resend activation';
   const save=document.getElementById('saveStaffBtn'); save.disabled=false; save.textContent=p?'Save staff member':'Send invitation';
   document.getElementById('staffFormMessage').textContent='';
   updateStaffScopeUI(); modal.hidden=false; setTimeout(()=>document.getElementById('staffName')?.focus(),0);
