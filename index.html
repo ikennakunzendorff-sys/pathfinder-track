@@ -139,6 +139,34 @@ button { cursor: pointer; }
 .mobile-unit-picker { display:none; margin:-12px 0 18px; }
 .mobile-staff-actions { display:none; margin:-12px 0 18px; }
 .mobile-staff-actions .btn { width:100%; }
+
+.pt-language-control{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:10px 0;
+}
+.pt-language-control span{font-size:15px}
+.pt-language-control select{
+  min-width:110px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--surface);
+  color:var(--text);
+  font:inherit;
+  font-size:13px;
+  font-weight:700;
+}
+.sidebar .pt-language-control{width:100%;margin:8px 0 12px}
+.sidebar .pt-language-control select{width:100%}
+.mobile-top .pt-language-control{margin:0}
+.mobile-top .pt-language-control select{min-width:86px;padding:7px 8px;font-size:12px}
+.login-card .pt-language-control{justify-content:flex-end;margin:0 0 14px}
+@media (max-width:760px){
+  .sidebar .pt-language-control{display:none}
+}
+
 .mobile-unit-picker .unit-picker { width:100%; }
 .mobile-unit-picker .unit-select { flex:1; min-width:0; }
 
@@ -529,10 +557,339 @@ function localISODate(d=new Date()) {
   return `${y}-${m}-${day}`;
 }
 
+
+const UI_TRANSLATIONS = {
+  pt: {
+    "Dashboard":"Painel","Meeting":"Reunião","Members":"Desbravadores","Classes":"Classes","Units":"Unidades",
+    "Scoreboard":"Placar","Scores":"Pontos","Staff":"Diretoria","Settings":"Configurações","Home":"Início",
+    "Sign out":"Sair","Welcome back":"Bem-vindo de volta","Sign in":"Entrar","Preview demo":"Ver demonstração",
+    "Email":"E-mail","Password":"Senha","Full name":"Nome completo","School grade":"Série escolar",
+    "Current class":"Classe atual","Status":"Status","Active":"Ativo","Archived":"Arquivado","All":"Todos",
+    "All units":"Todas as unidades","Unit":"Unidade","No unit":"Sem unidade","Select unit":"Selecionar unidade",
+    "Select grade":"Selecionar série","Select class":"Selecionar classe","Search":"Pesquisar","Edit":"Editar",
+    "Cancel":"Cancelar","Save":"Salvar","Review":"Revisar","Progress":"Progresso","Requirements":"Requisitos",
+    "Not started":"Não iniciado","In progress":"Em andamento","Completed":"Concluído","Advanced":"Avançado",
+    "Pathfinder":"Desbravador","Pathfinders":"Desbravadores","Pathfinder class":"Classe de Desbravadores",
+    "Pathfinder Class":"Classe de Desbravadores","Pathfinder directory":"Lista de Desbravadores",
+    "Add Pathfinder":"Adicionar desbravador","+ Add Pathfinder":"+ Adicionar desbravador",
+    "Save Pathfinder":"Salvar desbravador","Archive Pathfinder":"Arquivar desbravador",
+    "Add unit":"Adicionar unidade","+ Add unit":"+ Adicionar unidade","Create unit":"Criar unidade",
+    "Archive unit":"Arquivar unidade","Unit name":"Nome da unidade","Unit setup":"Configuração da unidade",
+    "Unit members":"Membros da unidade","Unit snapshot":"Resumo da unidade","Unit scoring":"Pontuação da unidade",
+    "Units / Unidades":"Unidades","Club structure":"Estrutura do clube",
+    "Add staff member":"Adicionar membro da diretoria","+ Add staff member":"+ Adicionar membro da diretoria",
+    "Staff / Diretoria":"Diretoria","Leadership":"Liderança","Leadership access":"Acesso da liderança",
+    "Club leadership":"Liderança do clube","Club role / title":"Função / cargo no clube",
+    "System access":"Acesso ao sistema","Primary unit":"Unidade principal","Authorized classes":"Classes autorizadas",
+    "Send invitation":"Enviar convite","Resend activation":"Reenviar ativação","Deactivate access":"Desativar acesso",
+    "Reactivate access":"Reativar acesso","Admin — whole club":"Administrador — clube inteiro",
+    "Instructor — assigned scope":"Instrutor — escopo atribuído","Viewer — limited access":"Visualizador — acesso limitado",
+    "Director overview":"Visão geral do diretor","Active Pathfinders":"Desbravadores ativos",
+    "Active units":"Unidades ativas","Active staff":"Diretoria ativa","Club points":"Pontos do clube",
+    "Club efficiency":"Aproveitamento do clube","Core class completion":"Conclusão das classes",
+    "Average core completion":"Média de conclusão básica","Average core class progress":"Progresso médio das classes",
+    "Recent meetings":"Reuniões recentes","Recent scoring":"Pontuação recente","Needs attention":"Precisa de atenção",
+    "Quick actions":"Ações rápidas","Common director workflows.":"Ações comuns do diretor.",
+    "Unit competition":"Competição entre unidades","Open scoreboard →":"Abrir placar →",
+    "Record meeting →":"Registrar reunião →","Record today's meeting":"Registrar reunião de hoje",
+    "Open meeting →":"Abrir reunião →","Meeting scoring":"Pontuação da reunião","Save meeting":"Salvar reunião",
+    "Attendance":"Presença","Meeting score":"Pontuação da reunião","Merit score":"Pontuação",
+    "Class completion":"Conclusão das classes","Class progress":"Progresso das classes",
+    "Core progress":"Progresso básico","Core requirements":"Requisitos básicos",
+    "My unit":"Minha unidade","Quick member overview":"Visão rápida dos membros","View all":"Ver todos",
+    "Simple, useful signals":"Indicadores simples e úteis","Next action":"Próxima ação",
+    "Continue class progress":"Continuar progresso da classe","Class instructor":"Instrutor de classe",
+    "Open classes →":"Abrir classes →","Present":"Presente","Absent":"Ausente","Bonus optional":"Bônus opcional",
+    "Ready to compete":"Pronto para competir","Leaderboard":"Classificação","Scored meetings":"Reuniões pontuadas",
+    "Club pulse":"Resumo do clube","Average":"Média","Total profiles":"Total de perfis","Admins":"Administradores",
+    "Instructors":"Instrutores","Counselors":"Conselheiros","Counselors / instructors":"Conselheiros / instrutores",
+    "Assigned Pathfinders":"Desbravadores atribuídos","Roster":"Lista","Roster and class placement":"Lista e classes",
+    "Counselors and structure":"Conselheiros e estrutura","Roles and permissions":"Funções e permissões",
+    "Attendance and unit points":"Presença e pontos da unidade","Create your password.":"Crie sua senha.",
+    "Account activation":"Ativação da conta","Set password":"Definir senha","New password":"Nova senha",
+    "Confirm password":"Confirmar senha","Activate account":"Ativar conta","Welcome back":"Bem-vindo de volta",
+    "Club management, simplified":"Gestão do clube, simplificada","Track progress.":"Acompanhe o progresso.",
+    "Build belonging.":"Fortaleça o pertencimento.","Mobile first":"Feito para celular","Multi-club ready":"Pronto para vários clubes",
+    "No unit":"Sem unidade","No counselor assigned":"Nenhum conselheiro atribuído",
+    "No members assigned yet.":"Nenhum desbravador atribuído ainda.",
+    "No members are available yet.":"Nenhum desbravador disponível ainda.",
+    "No members match these filters.":"Nenhum desbravador corresponde aos filtros.",
+    "No meetings have been saved yet.":"Nenhuma reunião foi salva ainda.",
+    "No units are available yet.":"Nenhuma unidade disponível ainda.",
+    "No units have been created yet.":"Nenhuma unidade foi criada ainda.",
+    "No units are available for the scoreboard yet.":"Nenhuma unidade disponível para o placar.",
+    "No scored meetings yet.":"Nenhuma reunião pontuada ainda.",
+    "No staff profiles have been added yet.":"Nenhum perfil da diretoria foi adicionado ainda.",
+    "No class levels are configured.":"Nenhuma classe está configurada.",
+    "No requirements are configured for this class.":"Nenhum requisito configurado para esta classe.",
+    "No active Pathfinders are assigned to this class yet.":"Nenhum desbravador ativo está atribuído a esta classe.",
+    "No active instructors are available yet. Add them in Staff first.":"Nenhum instrutor ativo disponível. Adicione-o primeiro em Diretoria.",
+    "Use the email your club director invited to Pathfinder Track.":"Use o e-mail para o qual o diretor enviou o convite.",
+    "MVP access is invitation-only. Pathfinder members do not need individual login accounts unless their club enables them later.":"O acesso é somente por convite. Os desbravadores não precisam de conta individual, a menos que o clube habilite isso.",
+    "A friendly workspace for Pathfinder clubs to manage units, attendance, merit points and class progress — without spreadsheets getting in the way.":"Um espaço simples para clubes de Desbravadores gerenciarem unidades, presença, pontos e progresso das classes — sem depender de planilhas.",
+    "Use at least 8 characters. A password manager is recommended.":"Use pelo menos 8 caracteres.",
+    "Finish setting up your Pathfinder Track account. Your club access has already been assigned by the director.":"Conclua a configuração da sua conta Pathfinder Track. Seu acesso ao clube já foi definido pelo diretor.",
+    "Your access is focused on the Pathfinder classes assigned to you.":"Seu acesso é focado nas classes de Desbravadores atribuídas a você.",
+    "Assign a primary unit only to counselors. Meeting access follows this unit.":"Atribua uma unidade principal somente aos conselheiros. O acesso às reuniões segue essa unidade.",
+    "Class-progress access can include multiple classes.":"O acesso ao progresso pode incluir várias classes.",
+    "New staff receive an invitation by email. Existing Pathfinder Track accounts are reused.":"Novos membros da diretoria recebem convite por e-mail. Contas existentes são reutilizadas.",
+    "Email belongs to the login account and is read-only here.":"O e-mail pertence à conta de login e não pode ser alterado aqui.",
+    "Invite leaders, assign club roles and control access by unit and class.":"Convide líderes, defina funções e controle o acesso por unidade e classe.",
+    "Staff management is available to the club director.":"A gestão da diretoria está disponível ao diretor do clube.",
+    "Unit management is available to the club director.":"A gestão das unidades está disponível ao diretor do clube.",
+    "The club-wide scoreboard is available to the club director.":"O placar geral está disponível ao diretor do clube.",
+    "Only meetings with saved score rows count toward accumulated points.":"Somente reuniões com pontuação salva contam para os pontos acumulados.",
+    "How ranking works:":"Como funciona a classificação:","Note:":"Observação:","Tip":"Dica",
+    "Search, review and maintain the club roster.":"Pesquise, revise e mantenha a lista do clube.",
+    "Track each Pathfinder against the official class requirements.":"Acompanhe cada Desbravador pelos requisitos oficiais da classe.",
+    "Select a grade to suggest a class.":"Selecione a série para sugerir uma classe.",
+    "Selecting a counselor already assigned elsewhere will move that person's primary unit.":"Selecionar um conselheiro já atribuído a outra unidade moverá sua unidade principal.",
+    "Create units, assign counselors and review each unit's roster and class progress.":"Crie unidades, atribua conselheiros e acompanhe a lista e o progresso das classes.",
+    "Keep weekly scoring quick. Tap only the items that need adjustment, then save the meeting.":"Mantenha a pontuação semanal rápida. Ajuste somente o necessário e salve a reunião.",
+    "Latest saved club activity across all units.":"Atividades mais recentes salvas em todas as unidades.",
+    "Setup gaps that can affect meetings, classes or reporting.":"Pendências de configuração que podem afetar reuniões, classes ou relatórios.",
+    "The leaderboard starts as soon as a meeting with scores is saved.":"A classificação começa assim que uma reunião com pontuação é salva.",
+    "Access is separate from the person's ministry title.":"O acesso ao sistema é separado do cargo no ministério.",
+    "Your account can view this progress but cannot change requirement status.":"Sua conta pode visualizar o progresso, mas não alterar o status dos requisitos.",
+    "Friend":"Amigo","Companion":"Companheiro","Explorer":"Pesquisador","Ranger":"Pioneiro","Voyager":"Excursionista","Guide":"Guia",
+    "Punctuality":"Pontualidade","Uniform":"Uniforme","Bible":"Bíblia","Participation / Discipline":"Participação / Disciplina",
+    "Material":"Material","Bonus":"Bônus","Director":"Diretor","Instructor":"Instrutor","Counselor":"Conselheiro"
+  },
+  es: {
+    "Dashboard":"Panel","Meeting":"Reunión","Members":"Conquistadores","Classes":"Clases","Units":"Unidades",
+    "Scoreboard":"Marcador","Scores":"Puntos","Staff":"Directiva","Settings":"Configuración","Home":"Inicio",
+    "Sign out":"Salir","Welcome back":"Bienvenido de nuevo","Sign in":"Iniciar sesión","Preview demo":"Ver demostración",
+    "Email":"Correo electrónico","Password":"Contraseña","Full name":"Nombre completo","School grade":"Grado escolar",
+    "Current class":"Clase actual","Status":"Estado","Active":"Activo","Archived":"Archivado","All":"Todos",
+    "All units":"Todas las unidades","Unit":"Unidad","No unit":"Sin unidad","Select unit":"Seleccionar unidad",
+    "Select grade":"Seleccionar grado","Select class":"Seleccionar clase","Search":"Buscar","Edit":"Editar",
+    "Cancel":"Cancelar","Save":"Guardar","Review":"Revisar","Progress":"Progreso","Requirements":"Requisitos",
+    "Not started":"No iniciado","In progress":"En progreso","Completed":"Completado","Advanced":"Avanzado",
+    "Pathfinder":"Conquistador","Pathfinders":"Conquistadores","Pathfinder class":"Clase de Conquistadores",
+    "Pathfinder Class":"Clase de Conquistadores","Pathfinder directory":"Lista de Conquistadores",
+    "Add Pathfinder":"Agregar Conquistador","+ Add Pathfinder":"+ Agregar Conquistador",
+    "Save Pathfinder":"Guardar Conquistador","Archive Pathfinder":"Archivar Conquistador",
+    "Add unit":"Agregar unidad","+ Add unit":"+ Agregar unidad","Create unit":"Crear unidad",
+    "Archive unit":"Archivar unidad","Unit name":"Nombre de la unidad","Unit setup":"Configuración de la unidad",
+    "Unit members":"Miembros de la unidad","Unit snapshot":"Resumen de la unidad","Unit scoring":"Puntuación de la unidad",
+    "Units / Unidades":"Unidades","Club structure":"Estructura del club",
+    "Add staff member":"Agregar miembro de la directiva","+ Add staff member":"+ Agregar miembro de la directiva",
+    "Staff / Diretoria":"Directiva","Leadership":"Liderazgo","Leadership access":"Acceso de liderazgo",
+    "Club leadership":"Liderazgo del club","Club role / title":"Función / cargo en el club",
+    "System access":"Acceso al sistema","Primary unit":"Unidad principal","Authorized classes":"Clases autorizadas",
+    "Send invitation":"Enviar invitación","Resend activation":"Reenviar activación","Deactivate access":"Desactivar acceso",
+    "Reactivate access":"Reactivar acceso","Admin — whole club":"Administrador — todo el club",
+    "Instructor — assigned scope":"Instructor — alcance asignado","Viewer — limited access":"Observador — acceso limitado",
+    "Director overview":"Resumen del director","Active Pathfinders":"Conquistadores activos",
+    "Active units":"Unidades activas","Active staff":"Directiva activa","Club points":"Puntos del club",
+    "Club efficiency":"Rendimiento del club","Core class completion":"Finalización de clases",
+    "Average core completion":"Promedio de requisitos básicos","Average core class progress":"Progreso promedio de clases",
+    "Recent meetings":"Reuniones recientes","Recent scoring":"Puntuación reciente","Needs attention":"Necesita atención",
+    "Quick actions":"Acciones rápidas","Common director workflows.":"Acciones comunes del director.",
+    "Unit competition":"Competencia entre unidades","Open scoreboard →":"Abrir marcador →",
+    "Record meeting →":"Registrar reunión →","Record today's meeting":"Registrar la reunión de hoy",
+    "Open meeting →":"Abrir reunión →","Meeting scoring":"Puntuación de la reunión","Save meeting":"Guardar reunión",
+    "Attendance":"Asistencia","Meeting score":"Puntuación de la reunión","Merit score":"Puntuación",
+    "Class completion":"Finalización de clases","Class progress":"Progreso de clases",
+    "Core progress":"Progreso básico","Core requirements":"Requisitos básicos",
+    "My unit":"Mi unidad","Quick member overview":"Resumen rápido de miembros","View all":"Ver todos",
+    "Simple, useful signals":"Indicadores simples y útiles","Next action":"Próxima acción",
+    "Continue class progress":"Continuar progreso de clase","Class instructor":"Instructor de clase",
+    "Open classes →":"Abrir clases →","Present":"Presente","Absent":"Ausente","Bonus optional":"Bono opcional",
+    "Ready to compete":"Listo para competir","Leaderboard":"Clasificación","Scored meetings":"Reuniones puntuadas",
+    "Club pulse":"Resumen del club","Average":"Promedio","Total profiles":"Total de perfiles","Admins":"Administradores",
+    "Instructors":"Instructores","Counselors":"Consejeros","Counselors / instructors":"Consejeros / instructores",
+    "Assigned Pathfinders":"Conquistadores asignados","Roster":"Lista","Roster and class placement":"Lista y clases",
+    "Counselors and structure":"Consejeros y estructura","Roles and permissions":"Funciones y permisos",
+    "Attendance and unit points":"Asistencia y puntos de la unidad","Create your password.":"Crea tu contraseña.",
+    "Account activation":"Activación de cuenta","Set password":"Definir contraseña","New password":"Nueva contraseña",
+    "Confirm password":"Confirmar contraseña","Activate account":"Activar cuenta",
+    "Club management, simplified":"Gestión del club, simplificada","Track progress.":"Sigue el progreso.",
+    "Build belonging.":"Fortalece la pertenencia.","Mobile first":"Diseñado para móvil","Multi-club ready":"Listo para varios clubes",
+    "No counselor assigned":"Ningún consejero asignado","No members assigned yet.":"Aún no hay Conquistadores asignados.",
+    "No members are available yet.":"Aún no hay Conquistadores disponibles.","No members match these filters.":"Ningún Conquistador coincide con los filtros.",
+    "No meetings have been saved yet.":"Aún no se han guardado reuniones.","No units are available yet.":"Aún no hay unidades disponibles.",
+    "No units have been created yet.":"Aún no se han creado unidades.","No units are available for the scoreboard yet.":"Aún no hay unidades disponibles para el marcador.",
+    "No scored meetings yet.":"Aún no hay reuniones puntuadas.","No staff profiles have been added yet.":"Aún no se han agregado perfiles de la directiva.",
+    "No class levels are configured.":"No hay clases configuradas.","No requirements are configured for this class.":"No hay requisitos configurados para esta clase.",
+    "No active Pathfinders are assigned to this class yet.":"Aún no hay Conquistadores activos asignados a esta clase.",
+    "No active instructors are available yet. Add them in Staff first.":"Aún no hay instructores activos disponibles. Agrégalos primero en Directiva.",
+    "Use the email your club director invited to Pathfinder Track.":"Usa el correo al que el director envió la invitación.",
+    "MVP access is invitation-only. Pathfinder members do not need individual login accounts unless their club enables them later.":"El acceso es solo por invitación. Los Conquistadores no necesitan una cuenta individual, salvo que el club la habilite.",
+    "A friendly workspace for Pathfinder clubs to manage units, attendance, merit points and class progress — without spreadsheets getting in the way.":"Un espacio sencillo para administrar unidades, asistencia, puntos y progreso de clases — sin depender de hojas de cálculo.",
+    "Use at least 8 characters. A password manager is recommended.":"Usa al menos 8 caracteres.",
+    "Finish setting up your Pathfinder Track account. Your club access has already been assigned by the director.":"Completa la configuración de tu cuenta Pathfinder Track. El director ya asignó tu acceso al club.",
+    "Your access is focused on the Pathfinder classes assigned to you.":"Tu acceso está enfocado en las clases de Conquistadores asignadas a ti.",
+    "Assign a primary unit only to counselors. Meeting access follows this unit.":"Asigna una unidad principal solo a los consejeros. El acceso a reuniones sigue esa unidad.",
+    "Class-progress access can include multiple classes.":"El acceso al progreso puede incluir varias clases.",
+    "New staff receive an invitation by email. Existing Pathfinder Track accounts are reused.":"Los nuevos miembros de la directiva reciben una invitación por correo. Las cuentas existentes se reutilizan.",
+    "Email belongs to the login account and is read-only here.":"El correo pertenece a la cuenta de inicio de sesión y no se puede cambiar aquí.",
+    "Invite leaders, assign club roles and control access by unit and class.":"Invita líderes, asigna funciones y controla el acceso por unidad y clase.",
+    "Staff management is available to the club director.":"La gestión de la directiva está disponible para el director del club.",
+    "Unit management is available to the club director.":"La gestión de unidades está disponible para el director del club.",
+    "The club-wide scoreboard is available to the club director.":"El marcador general está disponible para el director del club.",
+    "Only meetings with saved score rows count toward accumulated points.":"Solo las reuniones con puntuaciones guardadas cuentan para los puntos acumulados.",
+    "How ranking works:":"Cómo funciona la clasificación:","Note:":"Nota:","Tip":"Consejo",
+    "Search, review and maintain the club roster.":"Busca, revisa y mantén la lista del club.",
+    "Track each Pathfinder against the official class requirements.":"Sigue a cada Conquistador según los requisitos oficiales de la clase.",
+    "Select a grade to suggest a class.":"Selecciona el grado para sugerir una clase.",
+    "Selecting a counselor already assigned elsewhere will move that person's primary unit.":"Seleccionar un consejero ya asignado a otra unidad moverá su unidad principal.",
+    "Create units, assign counselors and review each unit's roster and class progress.":"Crea unidades, asigna consejeros y revisa la lista y el progreso de cada unidad.",
+    "Keep weekly scoring quick. Tap only the items that need adjustment, then save the meeting.":"Mantén rápida la puntuación semanal. Ajusta solo lo necesario y guarda la reunión.",
+    "Latest saved club activity across all units.":"Actividad más reciente guardada en todas las unidades.",
+    "Setup gaps that can affect meetings, classes or reporting.":"Pendientes de configuración que pueden afectar reuniones, clases o informes.",
+    "The leaderboard starts as soon as a meeting with scores is saved.":"La clasificación comienza cuando se guarda una reunión con puntuaciones.",
+    "Access is separate from the person's ministry title.":"El acceso al sistema es independiente del cargo en el ministerio.",
+    "Your account can view this progress but cannot change requirement status.":"Tu cuenta puede ver este progreso, pero no cambiar el estado de los requisitos.",
+    "Friend":"Amigo","Companion":"Compañero","Explorer":"Explorador","Ranger":"Orientador","Voyager":"Viajero","Guide":"Guía",
+    "Punctuality":"Puntualidad","Uniform":"Uniforme","Bible":"Biblia","Participation / Discipline":"Participación / Disciplina",
+    "Material":"Material","Bonus":"Bono","Director":"Director","Instructor":"Instructor","Counselor":"Consejero"
+  }
+};
+
+function detectUiLanguage(){
+  const saved=localStorage.getItem('pt_language');
+  if(['en','pt','es'].includes(saved)) return saved;
+  const b=(navigator.language||'en').toLowerCase();
+  if(b.startsWith('pt')) return 'pt';
+  if(b.startsWith('es')) return 'es';
+  return 'en';
+}
+let uiLanguage=detectUiLanguage();
+let i18nApplying=false;
+let i18nScheduled=false;
+
+function uiLocale(){
+  return uiLanguage==='pt'?'pt-BR':uiLanguage==='es'?'es-US':'en-US';
+}
+function languageControl(){
+  return `<label class="pt-language-control" data-no-i18n>
+    <span aria-hidden="true">🌐</span>
+    <select data-ui-language aria-label="Language">
+      <option value="en" ${uiLanguage==='en'?'selected':''}>English</option>
+      <option value="pt" ${uiLanguage==='pt'?'selected':''}>Português</option>
+      <option value="es" ${uiLanguage==='es'?'selected':''}>Español</option>
+    </select>
+  </label>`;
+}
+function translateUiString(value){
+  if(uiLanguage==='en' || !value) return value;
+  const dict=UI_TRANSLATIONS[uiLanguage]||{};
+  const lead=value.match(/^\s*/)?.[0]||'';
+  const tail=value.match(/\s*$/)?.[0]||'';
+  let s=value.trim();
+  if(!s) return value;
+  if(dict[s]) return lead+dict[s]+tail;
+
+  // Dynamic UI phrases.
+  if(/^Grade \d+$/i.test(s)) s=s.replace(/^Grade /i,uiLanguage==='pt'?'Série ':'Grado ');
+  s=s.replace(/^Meeting · /,uiLanguage==='pt'?'Reunião · ':'Reunión · ');
+  s=s.replace(/^Current leader · /,uiLanguage==='pt'?'Líder atual · ':'Líder actual · ');
+  s=s.replace(/^Club year · /,uiLanguage==='pt'?'Ano do clube · ':'Año del club · ');
+  s=s.replace(/ pts earned$/i,uiLanguage==='pt'?' pts conquistados':' pts obtenidos');
+  s=s.replace(/ members$/i,uiLanguage==='pt'?' membros':' miembros');
+  s=s.replace(/ meeting$/i,uiLanguage==='pt'?' reunião':' reunión');
+  s=s.replace(/ meetings$/i,uiLanguage==='pt'?' reuniões':' reuniones');
+
+  // Composite class/category labels such as "Friend · Grade 5".
+  const comp=UI_TRANSLATIONS[uiLanguage];
+  for(const key of ['Friend','Companion','Explorer','Ranger','Voyager','Guide','Punctuality','Uniform','Bible','Participation / Discipline','Material','Bonus']){
+    if(s.includes(key)) s=s.split(key).join(comp[key]||key);
+  }
+  s=s.replace(/\bGrade\b/g,uiLanguage==='pt'?'Série':'Grado');
+
+  return lead+s+tail;
+}
+function translateUiAttributes(root){
+  const attrs=['placeholder','title','aria-label'];
+  root.querySelectorAll('*').forEach(el=>{
+    if(el.closest('[data-no-i18n]')) return;
+    attrs.forEach(attr=>{
+      const v=el.getAttribute(attr);
+      if(v){
+        const translated=translateUiString(v);
+        if(translated!==v) el.setAttribute(attr,translated);
+      }
+    });
+  });
+}
+function applyUiLanguage(){
+  if(i18nApplying) return;
+  i18nApplying=true;
+  document.documentElement.lang=uiLanguage==='pt'?'pt-BR':uiLanguage==='es'?'es':'en';
+  try{
+    mountLanguageControls();
+    if(uiLanguage!=='en'){
+      const walker=document.createTreeWalker(app,NodeFilter.SHOW_TEXT);
+      const nodes=[];
+      while(walker.nextNode()) nodes.push(walker.currentNode);
+      for(const node of nodes){
+        const parent=node.parentElement;
+        if(!parent || parent.closest('script,style,[data-no-i18n]')) continue;
+        const next=translateUiString(node.nodeValue);
+        if(next!==node.nodeValue) node.nodeValue=next;
+      }
+      translateUiAttributes(app);
+    }
+  }finally{
+    i18nApplying=false;
+  }
+}
+function scheduleUiLanguage(){
+  if(i18nScheduled) return;
+  i18nScheduled=true;
+  requestAnimationFrame(()=>{i18nScheduled=false;applyUiLanguage();});
+}
+function mountLanguageControls(){
+  document.querySelectorAll('.pt-language-control').forEach(el=>{
+    if(!el.closest('.sidebar,.mobile-top,.login-card')) el.remove();
+  });
+  const sidebar=document.querySelector('.sidebar');
+  if(sidebar && !sidebar.querySelector('.pt-language-control')){
+    const holder=document.createElement('div'); holder.innerHTML=languageControl();
+    sidebar.insertBefore(holder.firstElementChild,sidebar.querySelector('.profile-mini'));
+  }
+  const mobile=document.querySelector('.mobile-top');
+  if(mobile && !mobile.querySelector('.pt-language-control')){
+    const holder=document.createElement('div'); holder.innerHTML=languageControl();
+    const avatar=mobile.querySelector('.avatar');
+    if(avatar) mobile.insertBefore(holder.firstElementChild,avatar); else mobile.appendChild(holder.firstElementChild);
+  }
+  const login=document.querySelector('.login-card');
+  if(login && !login.querySelector('.pt-language-control')){
+    const holder=document.createElement('div'); holder.innerHTML=languageControl();
+    login.insertBefore(holder.firstElementChild,login.firstChild);
+  }
+  document.querySelectorAll('[data-ui-language]').forEach(sel=>{
+    sel.value=uiLanguage;
+    sel.onchange=e=>setUiLanguage(e.target.value);
+  });
+}
+function setUiLanguage(lang){
+  if(!['en','pt','es'].includes(lang) || lang===uiLanguage) return;
+  uiLanguage=lang;
+  localStorage.setItem('pt_language',lang);
+  document.documentElement.lang=lang==='pt'?'pt-BR':lang==='es'?'es':'en';
+  // Re-render from the original English UI, then translate to the selected language.
+  if(state){
+    renderApp();
+  }else{
+    const invite=inviteSessionFromHash();
+    if(invite?.accessToken) passwordSetupView(invite.accessToken,invite.type);
+    else loginView();
+  }
+  scheduleUiLanguage();
+}
+function startUiLanguageObserver(){
+  const observer=new MutationObserver(()=>{ if(!i18nApplying) scheduleUiLanguage(); });
+  observer.observe(app,{childList:true,subtree:true,characterData:true});
+  scheduleUiLanguage();
+}
+
 function formatMeetingDate(dateStr) {
   if(!dateStr) return 'Today';
   const [y,m,d] = dateStr.split('-').map(Number);
-  return new Date(y,m-1,d).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+  return new Date(y,m-1,d).toLocaleDateString(uiLocale(),{month:'short',day:'numeric',year:'numeric'});
 }
 
 const demoState = {
@@ -613,7 +970,7 @@ function unitClassProgress(members=state?.members||[]){
 function formatShortDate(value){
   if(!value) return '';
   const d=new Date(value); if(Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+  return d.toLocaleDateString(uiLocale(),{month:'short',day:'numeric',year:'numeric'});
 }
 function maxScore(){ return scoreCategories.reduce((a,c)=>a+c.points,0); }
 function memberPoints(m){ if(!m.present) return 0; return scoreCategories.reduce((sum,c)=>sum+(m.scores?.[c.key] ? c.points : 0),0); }
@@ -1887,6 +2244,7 @@ async function saveMeeting(btn){
 function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=structuredClone(defaultScoreCategories); state=null; route='dashboard'; selectedClassId=null; selectedClassMemberId=null; loginView(); }
 
 (async function boot(){
+  startUiLanguageObserver();
   const inviteSession=inviteSessionFromHash();
   if(inviteSession?.error){
     app.innerHTML=`<div class="loading">Invitation error: ${esc(inviteSession.error)}</div>`;
