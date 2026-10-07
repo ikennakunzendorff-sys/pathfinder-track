@@ -988,9 +988,32 @@ function translateUiString(value){
   s=s.replace(/ meetings$/i,isPt?' reuniões':' reuniones');
 
   // Composite class/category labels.
+  // Replace only complete English tokens/phrases so already-translated words
+  // (for example "Uniforme") are never translated again by the MutationObserver.
   const comp=UI_TRANSLATIONS[uiLanguage];
-  for(const key of ['Friend','Companion','Explorer','Ranger','Voyager','Guide','Punctuality','Uniform','Bible','Participation / Discipline','Material','Bonus']){
-    if(s.includes(key)) s=s.split(key).join(comp[key]||key);
+  const compositeReplacements = [
+    ['Participation / Discipline', comp['Participation / Discipline']],
+    ['Friend', comp['Friend']],
+    ['Companion', comp['Companion']],
+    ['Explorer', comp['Explorer']],
+    ['Ranger', comp['Ranger']],
+    ['Voyager', comp['Voyager']],
+    ['Guide', comp['Guide']],
+    ['Punctuality', comp['Punctuality']],
+    ['Uniform', comp['Uniform']],
+    ['Bible', comp['Bible']],
+    ['Material', comp['Material']],
+    ['Bonus', comp['Bonus']]
+  ];
+  for(const [english,translated] of compositeReplacements){
+    if(!translated || english===translated) continue;
+    const escaped=english.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    // For single words, use word boundaries. For phrases, require them as a
+    // standalone phrase rather than as a substring of an already translated word.
+    const pattern=english.includes(' ')
+      ? new RegExp(`(^|[^\\p{L}\\p{N}_])(${escaped})(?=$|[^\\p{L}\\p{N}_])`,'gu')
+      : new RegExp(`\\b${escaped}\\b`,'g');
+    s=s.replace(pattern,(match,prefix)=>english.includes(' ')?`${prefix}${translated}`:translated);
   }
   s=s.replace(/\bGrade\b/g,isPt?'Série':'Grado');
 
@@ -999,6 +1022,8 @@ function translateUiString(value){
 
   return lead+s+tail;
 }
+// Translation must be idempotent: applying it repeatedly to an already translated
+// label must return the same label (e.g. "Uniforme" must never become "Uniformee").
 function translateUiAttributes(root){
   const attrs=['placeholder','title','aria-label'];
   root.querySelectorAll('*').forEach(el=>{
