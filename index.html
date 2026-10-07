@@ -120,7 +120,7 @@ button { cursor: pointer; }
 .sidebar .brand-mark { background: rgba(255,255,255,.10); box-shadow: none; }
 .sidebar .brand-title span { color: #acd7bc; }
 .nav { display: grid; gap: 7px; margin-top: 16px; }
-.nav button { color: rgba(255,255,255,.70); background: transparent; border: 0; text-align: left; padding: 12px 13px; border-radius: 12px; font-weight: 650; display: flex; gap: 10px; align-items: center; }
+.nav button { color: rgba(255,255,255,.70); background: transparent; border: 0; text-align: left; padding: 12px 13px; border-radius: 12px; font-weight: 650; display: flex; gap: 10px; align-items: center; text-transform:capitalize; }
 .nav button.active, .nav button:hover { background: rgba(255,255,255,.09); color: white; }
 .sidebar-spacer { flex: 1; }
 .profile-mini { border-top: 1px solid rgba(255,255,255,.10); padding: 18px 8px 0; display: flex; gap: 10px; align-items: center; }
@@ -231,7 +231,10 @@ button { cursor: pointer; }
 .criterion.active { border-color:#a8d3bb; background:var(--forest-100); color:var(--forest-800); }
 .criterion:disabled { opacity:.45; cursor:not-allowed; }
 .person-total { margin-top:12px; display:flex; justify-content:flex-end; font-weight:900; color:var(--forest-800); }
-.sticky-save { position: sticky; bottom: 14px; margin-top:18px; background:rgba(246,244,236,.90); backdrop-filter:blur(12px); padding:10px; border-radius:18px; }
+.sticky-save { position: sticky; bottom: 14px; margin-top:18px; background:rgba(246,244,236,.90); backdrop-filter:blur(12px); padding:10px; border-radius:18px; display:flex; gap:10px; align-items:center; }
+.sticky-save .btn-primary { flex:1; }
+.sticky-save .meeting-delete-btn { flex:0 0 auto; color:#a23c32; border-color:#e4c8c4; background:#fff; }
+.sticky-save .meeting-delete-btn:hover { background:#fff4f2; }
 
 .mobile-top, .bottom-nav { display:none; }
 .empty { color: var(--muted); text-align:center; padding: 28px 10px; }
@@ -381,7 +384,7 @@ button { cursor: pointer; }
   .criteria { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .criterion:last-child { grid-column: 1 / -1; }
   .bottom-nav { display:grid; grid-template-columns:repeat(4,1fr); position:fixed; bottom:0; left:0; right:0; z-index:50; background:rgba(255,255,255,.94); border-top:1px solid var(--line); backdrop-filter:blur(18px); padding:8px 8px max(8px, env(safe-area-inset-bottom)); }
-  .bottom-nav button { border:0; background:transparent; padding:9px 3px; color:var(--muted); font-size:11px; font-weight:750; }
+  .bottom-nav button { border:0; background:transparent; padding:9px 3px; color:var(--muted); font-size:11px; font-weight:750; text-transform:capitalize; }
   .bottom-nav button.active { color:var(--forest-800); }
 }
 .score-person-head small { display:block; margin-top:4px; color:var(--muted); }
@@ -605,7 +608,7 @@ const UI_TRANSLATIONS = {
     "Quick actions":"Ações rápidas","Common director workflows.":"Ações comuns do diretor.",
     "Unit competition":"Competição entre unidades","Open scoreboard →":"Abrir placar →",
     "Record meeting →":"Registrar reunião →","Record today's meeting":"Registrar reunião de hoje",
-    "Open meeting →":"Abrir reunião →","Meeting scoring":"Pontuação da reunião","Save meeting":"Salvar reunião",
+    "Open meeting →":"Abrir reunião →","Meeting scoring":"Pontuação da reunião","Save meeting":"Salvar reunião","Delete meeting":"Apagar reunião",
     "Attendance":"Presença","Meeting score":"Pontuação da reunião","Merit score":"Pontuação",
     "Class completion":"Conclusão das classes","Class progress":"Progresso das classes",
     "Core progress":"Progresso básico","Core requirements":"Requisitos básicos",
@@ -701,7 +704,7 @@ const UI_TRANSLATIONS = {
     "Quick actions":"Acciones rápidas","Common director workflows.":"Acciones comunes del director.",
     "Unit competition":"Competencia entre unidades","Open scoreboard →":"Abrir marcador →",
     "Record meeting →":"Registrar reunión →","Record today's meeting":"Registrar la reunión de hoy",
-    "Open meeting →":"Abrir reunión →","Meeting scoring":"Puntuación de la reunión","Save meeting":"Guardar reunión",
+    "Open meeting →":"Abrir reunión →","Meeting scoring":"Puntuación de la reunión","Save meeting":"Guardar reunión","Delete meeting":"Eliminar reunión",
     "Attendance":"Asistencia","Meeting score":"Puntuación de la reunión","Merit score":"Puntuación",
     "Class completion":"Finalización de clases","Class progress":"Progreso de clases",
     "Core progress":"Progreso básico","Core requirements":"Requisitos básicos",
@@ -2114,7 +2117,10 @@ function meetingView() {
     ${mobileUnitPicker()}
     <div class="score-legend">${scoreCategories.map(c=>`<span class="legend-pill">${c.name} ${c.points} pts</span>`).join('')}<span class="legend-pill">Bonus optional</span></div>
     <div id="scoreList">${state.members.map(scoreCard).join('')}</div>
-    <div class="sticky-save"><button class="btn btn-primary" id="saveMeeting">Save meeting</button></div>
+    <div class="sticky-save">
+      ${state.user?.role==='director' && state.meeting?.id?`<button class="btn btn-ghost meeting-delete-btn" id="deleteMeeting">Delete meeting</button>`:''}
+      <button class="btn btn-primary" id="saveMeeting">Save meeting</button>
+    </div>
   </div>`;
 }
 
@@ -2137,6 +2143,7 @@ function renderApp() {
   document.querySelectorAll('[data-presence]').forEach(btn=>btn.onclick=()=>togglePresence(btn.dataset.presence));
   document.querySelectorAll('[data-score]').forEach(btn=>btn.onclick=()=>toggleScore(btn.dataset.score,btn.dataset.key));
   const save = document.getElementById('saveMeeting'); if(save) save.onclick = ()=>saveMeeting(save);
+  const deleteMeetingBtn = document.getElementById('deleteMeeting'); if(deleteMeetingBtn) deleteMeetingBtn.onclick = ()=>deleteMeeting(deleteMeetingBtn);
   const addMember=document.getElementById('addMemberBtn'); if(addMember) addMember.onclick=()=>openMemberEditor();
   const addMemberMobile=document.getElementById('addMemberBtnMobile'); if(addMemberMobile) addMemberMobile.onclick=()=>openMemberEditor();
   document.querySelectorAll('[data-edit-member]').forEach(btn=>btn.onclick=()=>openMemberEditor(btn.dataset.editMember));
@@ -2176,6 +2183,46 @@ function renderApp() {
 function bindNavigation(){ document.querySelectorAll('[data-route]').forEach(el=>el.onclick=async()=>{ route=el.dataset.route; renderApp(); if(['dashboard','scoreboard'].includes(route) && state?.mode==='live' && state?.user?.role==='director' && !state.scoreboardLoaded){ try{ await loadScoreboardData(); renderApp(); }catch(err){ console.error(err); if(route==='scoreboard') alert(err.message||'Scoreboard could not be loaded.'); } } }); }
 function togglePresence(id){ const m=state.members.find(x=>String(x.id)===String(id)); m.present=!m.present; if(!m.present) Object.keys(m.scores||{}).forEach(k=>m.scores[k]=false); else scoreCategories.forEach(c=>m.scores[c.key]=true); renderApp(); }
 function toggleScore(id,key){ const m=state.members.find(x=>String(x.id)===String(id)); if(!m.present) return; m.scores ||= {}; m.scores[key]=!m.scores[key]; renderApp(); }
+async function deleteMeeting(btn){
+  if(state?.mode==='demo' || state?.user?.role!=='director' || !state?.meeting?.id) return;
+  const meetingId=state.meeting.id;
+  const meetingDate=state.meeting.rawDate || state.meeting.meeting_date || localISODate();
+  const label=state.meeting.date || formatMeetingDate(meetingDate);
+  const message=uiLanguage==='pt'
+    ? `Apagar a reunião de ${label}? A presença e toda a pontuação desta reunião também serão apagadas. Esta ação não pode ser desfeita.`
+    : uiLanguage==='es'
+      ? `¿Eliminar la reunión del ${label}? La asistencia y toda la puntuación de esta reunión también se eliminarán. Esta acción no se puede deshacer.`
+      : `Delete the meeting for ${label}? Attendance and all scoring for this meeting will also be deleted. This cannot be undone.`;
+  if(!confirm(message)) return;
+
+  const original=btn.textContent;
+  btn.disabled=true;
+  btn.textContent=uiLanguage==='pt'?'Apagando…':uiLanguage==='es'?'Eliminando…':'Deleting…';
+  try{
+    await sbWrite(`meetings?id=eq.${encodeURIComponent(meetingId)}`,state.token,{
+      method:'DELETE',
+      prefer:'return=representation'
+    });
+
+    // Remove it from the in-memory meeting list so loadSelectedUnit does not reload a deleted row.
+    state.meetings=(state.meetings||[]).filter(m=>String(m.id)!==String(meetingId));
+    state.scoreboardLoaded=false;
+    await loadSelectedUnit(meetingDate);
+
+    if(state.user.role==='director'){
+      try{ await loadScoreboardData(); }catch(err){ console.error('Scoreboard refresh after meeting delete failed.',err); }
+    }
+
+    renderApp();
+    alert(uiLanguage==='pt'?'Reunião apagada.':uiLanguage==='es'?'Reunión eliminada.':'Meeting deleted.');
+  }catch(err){
+    console.error(err);
+    btn.disabled=false;
+    btn.textContent=original;
+    alert(err.message || (uiLanguage==='pt'?'A reunião não pôde ser apagada.':uiLanguage==='es'?'No se pudo eliminar la reunión.':'The meeting could not be deleted.'));
+  }
+}
+
 async function saveMeeting(btn){
   if(state.mode==='demo') {
     btn.textContent='Demo saved ✓'; btn.disabled=true;
