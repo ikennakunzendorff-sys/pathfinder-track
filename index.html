@@ -955,7 +955,18 @@ const UI_TRANSLATIONS_AUDIT = {
     "Meeting saved":"Reunião salva",
     "Current meeting":"Reunião atual",
     "Current club year":"Ano atual do clube",
-    "No automatic class mapping":"Sem sugestão automática de classe"
+    "No automatic class mapping":"Sem sugestão automática de classe",
+    "↻ Refresh scores":"↻ Atualizar pontuação",
+    "Activating…":"Ativando…",
+    "Sending…":"Enviando…",
+    "Signing in…":"Entrando…",
+    "The passwords do not match.":"As senhas não coincidem.",
+    "Use at least 8 characters.":"Use pelo menos 8 caracteres.",
+    "This account is already activated. No email was sent.":"Esta conta já está ativada. Nenhum e-mail foi enviado.",
+    "New activation email sent. The link is temporary and should be opened soon.":"Novo e-mail de ativação enviado. O link é temporário e deve ser aberto em breve.",
+    "Pathfinder Track · MVP Preview":"Pathfinder Track · Prévia do MVP",
+    "Pathfinder Track · Secure activation":"Pathfinder Track · Ativação segura",
+    "e.g. Guerreiras Valentes":"ex.: Guerreiras Valentes"
   },
   es: {
     "Language":"Idioma",
@@ -1046,7 +1057,18 @@ const UI_TRANSLATIONS_AUDIT = {
     "Meeting saved":"Reunión guardada",
     "Current meeting":"Reunión actual",
     "Current club year":"Año actual del club",
-    "No automatic class mapping":"Sin sugerencia automática de clase"
+    "No automatic class mapping":"Sin sugerencia automática de clase",
+    "↻ Refresh scores":"↻ Actualizar puntuación",
+    "Activating…":"Activando…",
+    "Sending…":"Enviando…",
+    "Signing in…":"Ingresando…",
+    "The passwords do not match.":"Las contraseñas no coinciden.",
+    "Use at least 8 characters.":"Usa al menos 8 caracteres.",
+    "This account is already activated. No email was sent.":"Esta cuenta ya está activada. No se envió ningún correo.",
+    "New activation email sent. The link is temporary and should be opened soon.":"Nuevo correo de activación enviado. El enlace es temporal y debe abrirse pronto.",
+    "Pathfinder Track · MVP Preview":"Pathfinder Track · Vista previa del MVP",
+    "Pathfinder Track · Secure activation":"Pathfinder Track · Activación segura",
+    "e.g. Guerreiras Valentes":"p. ej. Guerreiras Valentes"
   }
 };
 Object.assign(UI_TRANSLATIONS.pt, UI_TRANSLATIONS_AUDIT.pt);
@@ -1249,7 +1271,7 @@ function translateUiString(value){
 // Translation must be idempotent: applying it repeatedly to an already translated
 // label must return the same label (e.g. "Uniforme" must never become "Uniformee").
 function translateUiAttributes(root){
-  const attrs=['placeholder','title','aria-label'];
+  const attrs=['placeholder','title','aria-label','label'];
   root.querySelectorAll('*').forEach(el=>{
     if(el.closest('[data-no-i18n]')) return;
     attrs.forEach(attr=>{
@@ -2290,7 +2312,7 @@ function staffEditorModal(){
       <div class="member-form-grid">
         <div class="field full"><label for="staffName">Full name</label><input id="staffName" maxlength="120" required placeholder="Leader name"></div>
         <div class="field full"><label for="staffEmail">Email</label><input id="staffEmail" type="email" required placeholder="leader@example.com"><div class="form-hint" id="staffEmailHint">New staff receive an invitation by email. Existing Pathfinder Track accounts are reused.</div></div>
-        <div class="field"><label for="staffTitle">Club role / title</label><input id="staffTitle" list="staffTitleOptions" maxlength="80" placeholder="e.g. Secretary"><datalist id="staffTitleOptions"><option value="Director"><option value="Associate Director"><option value="Secretary"><option value="Counselor"><option value="Instructor"><option value="Chaplain"><option value="Treasurer"></datalist></div>
+        <div class="field"><label for="staffTitle">Club role / title</label><input id="staffTitle" list="staffTitleOptions" maxlength="80" placeholder="e.g. Secretary"><datalist id="staffTitleOptions"><option value="Director" label="${translateUiString('Director')}"><option value="Associate Director" label="${translateUiString('Associate Director')}"><option value="Secretary" label="${translateUiString('Secretary')}"><option value="Counselor" label="${translateUiString('Counselor')}"><option value="Instructor" label="${translateUiString('Instructor')}"><option value="Chaplain" label="${translateUiString('Chaplain')}"><option value="Treasurer" label="${translateUiString('Treasurer')}"></datalist></div>
         <div class="field"><label for="staffRole">System access</label><select id="staffRole"><option value="director">Admin — whole club</option><option value="instructor" selected>Instructor — assigned scope</option><option value="viewer">Viewer — limited access</option></select></div>
         <div class="field full staff-scope" id="staffScopeWrap">
           <div class="field"><label for="staffUnit">Primary unit</label><select id="staffUnit"><option value="">No unit</option>${activeUnits().map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select><div class="form-hint">Assign a primary unit only to counselors. Meeting access follows this unit.</div></div>
