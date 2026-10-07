@@ -508,7 +508,8 @@ button { cursor: pointer; }
 .dashboard-leader-points strong { display:block; font-size:18px; color:var(--forest-900); }
 .dashboard-leader-points small { color:var(--muted); font-size:9px; }
 .dashboard-recent-list { display:grid; }
-.dashboard-recent-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:13px 18px; border-bottom:1px solid var(--line); align-items:center; }
+.dashboard-recent-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; padding:13px 18px; border-bottom:1px solid var(--line); align-items:center; }
+.dashboard-recent-open { padding:7px 10px; font-size:10px; white-space:nowrap; }
 .dashboard-recent-row:last-child { border-bottom:0; }
 .dashboard-recent-row strong { display:block; font-size:12px; }
 .dashboard-recent-row small { display:block; color:var(--muted); margin-top:3px; font-size:10px; }
@@ -582,7 +583,7 @@ const UI_TRANSLATIONS = {
     "Email":"E-mail","Password":"Senha","Full name":"Nome completo","School grade":"Série escolar",
     "Current class":"Classe atual","Status":"Status","Active":"Ativo","Archived":"Arquivado","All":"Todos",
     "All units":"Todas as unidades","Unit":"Unidade","No unit":"Sem unidade","Select unit":"Selecionar unidade",
-    "Select grade":"Selecionar série","Select class":"Selecionar classe","Search":"Pesquisar","Edit":"Editar",
+    "Select grade":"Selecionar série","Select class":"Selecionar classe","Search":"Pesquisar","Edit":"Editar","Open":"Abrir",
     "Cancel":"Cancelar","Save":"Salvar","Review":"Revisar","Progress":"Progresso","Requirements":"Requisitos",
     "Not started":"Não iniciado","In progress":"Em andamento","Completed":"Concluído","Advanced":"Avançado",
     "Pathfinder":"Desbravador","Pathfinders":"Desbravadores","Pathfinder class":"Classe de Desbravadores",
@@ -678,7 +679,7 @@ const UI_TRANSLATIONS = {
     "Email":"Correo electrónico","Password":"Contraseña","Full name":"Nombre completo","School grade":"Grado escolar",
     "Current class":"Clase actual","Status":"Estado","Active":"Activo","Archived":"Archivado","All":"Todos",
     "All units":"Todas las unidades","Unit":"Unidad","No unit":"Sin unidad","Select unit":"Seleccionar unidad",
-    "Select grade":"Seleccionar grado","Select class":"Seleccionar clase","Search":"Buscar","Edit":"Editar",
+    "Select grade":"Seleccionar grado","Select class":"Seleccionar clase","Search":"Buscar","Edit":"Editar","Open":"Abrir",
     "Cancel":"Cancelar","Save":"Guardar","Review":"Revisar","Progress":"Progreso","Requirements":"Requisitos",
     "Not started":"No iniciado","In progress":"En progreso","Completed":"Completado","Advanced":"Avanzado",
     "Pathfinder":"Conquistador","Pathfinders":"Conquistadores","Pathfinder class":"Clase de Conquistadores",
@@ -1551,7 +1552,7 @@ function directorDashboardView(){
   const yearLabel=state.clubYear?.label || 'Current club year';
   const leader=d.board.ranked.find(u=>Number(u.points)>0) || null;
   const leaders=d.board.ranked.slice(0,3).map(u=>`<div class="dashboard-leader-row"><div class="dashboard-place">${u.rank}</div><div class="dashboard-leader-main"><strong>${esc(u.name)}</strong><small>${u.members} Pathfinder${u.members===1?'':'s'} · ${u.meetings} scored meeting${u.meetings===1?'':'s'} · ${u.efficiency}% efficiency</small></div><div class="dashboard-leader-points"><strong>${u.points}</strong><small>points</small></div></div>`).join('');
-  const recent=d.recent.map(m=>`<div class="dashboard-recent-row"><div><strong>${esc(unitName(m.unit_id))}</strong><small>${esc(formatMeetingDate(m.meeting_date))} · ${m.present}/${m.attendanceRecords||0} present</small></div><div class="dashboard-recent-meta"><strong>${m.scored?`${m.earned} pts`:'Not scored'}</strong><small>${m.scored && m.possible?`${Math.round(m.earned/m.possible*1000)/10}% efficiency`:'Meeting saved'}</small></div></div>`).join('');
+  const recent=d.recent.map(m=>`<div class="dashboard-recent-row"><div><strong>${esc(unitName(m.unit_id))}</strong><small>${esc(formatMeetingDate(m.meeting_date))} · ${m.present}/${m.attendanceRecords||0} present</small></div><div class="dashboard-recent-meta"><strong>${m.scored?`${m.earned} pts`:'Not scored'}</strong><small>${m.scored && m.possible?`${Math.round(m.earned/m.possible*1000)/10}% efficiency`:'Meeting saved'}</small></div><button class="btn btn-ghost dashboard-recent-open" data-open-meeting="${m.id}">Open</button></div>`).join('');
   const pending=[
     {count:d.membersWithoutUnit,label:'Pathfinders without a unit',hint:'Assign every active Pathfinder to a unit.',route:'members'},
     {count:d.membersWithoutClass,label:'Pathfinders without a class',hint:'Complete class placement for the active roster.',route:'members'},
@@ -2318,6 +2319,21 @@ async function setRequirementStatus(memberId,requirementId,status,button) {
   }
 }
 
+async function openSavedMeeting(meetingId){
+  if(state?.mode!=='live' || state?.user?.role!=='director') return;
+  const meeting=(state.meetings||[]).find(m=>String(m.id)===String(meetingId));
+  if(!meeting) {
+    alert(uiLanguage==='pt'?'Reunião não encontrada.':uiLanguage==='es'?'Reunión no encontrada.':'Meeting not found.');
+    return;
+  }
+  state.selectedUnitId=meeting.unit_id;
+  state.unit=state.units.find(u=>String(u.id)===String(meeting.unit_id)) || {id:meeting.unit_id,name:'Selected Unit'};
+  localStorage.setItem('pt_unit_id',meeting.unit_id);
+  await loadSelectedUnit(meeting.meeting_date);
+  route='meeting';
+  renderApp();
+}
+
 function meetingView() {
   return `${mobileTop()}<div class="meeting-page">
     <div class="back-row"><button class="btn btn-ghost" data-route="dashboard">← Dashboard</button><span>Meeting scoring</span></div>
@@ -2350,6 +2366,7 @@ function renderApp() {
   ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(err.message || 'Unit could not be loaded.'); renderApp(); } }; });
   document.querySelectorAll('[data-presence]').forEach(btn=>btn.onclick=()=>togglePresence(btn.dataset.presence));
   document.querySelectorAll('[data-score]').forEach(btn=>btn.onclick=()=>toggleScore(btn.dataset.score,btn.dataset.key));
+  document.querySelectorAll('[data-open-meeting]').forEach(btn=>btn.onclick=()=>openSavedMeeting(btn.dataset.openMeeting));
   const save = document.getElementById('saveMeeting'); if(save) save.onclick = ()=>saveMeeting(save);
   const deleteMeetingBtn = document.getElementById('deleteMeeting'); if(deleteMeetingBtn) deleteMeetingBtn.onclick = ()=>deleteMeeting(deleteMeetingBtn);
   const addMember=document.getElementById('addMemberBtn'); if(addMember) addMember.onclick=()=>openMemberEditor();
