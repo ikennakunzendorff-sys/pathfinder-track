@@ -248,8 +248,10 @@ button { cursor: pointer; }
   border:1px solid var(--line); background:white; color:var(--ink); border-radius:13px; padding:12px 13px; outline:none;
 }
 .search-box:focus, .filter-select:focus, .member-form input:focus, .member-form select:focus { border-color:var(--forest-700); box-shadow:0 0 0 4px rgba(44,109,85,.10); }
+[hidden] { display:none !important; }
 .member-directory { display:grid; gap:10px; margin-top:16px; }
 .member-directory-row { background:white; border:1px solid var(--line); border-radius:18px; padding:15px 16px; display:grid; grid-template-columns:auto minmax(0,1.4fr) minmax(100px,.7fr) minmax(130px,.8fr) auto; gap:13px; align-items:center; }
+.member-directory-row.filtered-out { display:none !important; }
 .member-directory-row.inactive { opacity:.62; background:#f7f8f6; }
 .member-directory-row .member-main strong { display:block; font-size:14px; }
 .member-directory-row .member-main small, .member-meta small { color:var(--muted); }
@@ -1905,12 +1907,20 @@ function membersView() {
   </div>`;
 }
 
+function normalizeMemberSearch(value='') {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .trim();
+}
+
 function memberDirectoryRow(m,editable) {
   const active=m.active!==false;
   const grade=m.school_grade ?? m.grade ?? '';
   const memberClass=m.current_class_level_id ? className(m.current_class_level_id) : (m.class || 'No class');
   const memberUnit=m.unit_id ? unitName(m.unit_id) : (state.mode==='demo' ? state.unit?.name || 'Demo unit' : 'No unit');
-  const searchText=`${m.full_name||''} ${memberClass} ${memberUnit} ${grade}`.toLowerCase();
+  const searchText=normalizeMemberSearch(`${m.full_name||''} ${memberClass} ${memberUnit} ${grade}`);
   return `<div class="member-directory-row ${active?'':'inactive'}" data-directory-member data-search="${esc(searchText)}" data-unit="${esc(m.unit_id||'')}" data-active="${active?'1':'0'}">
     <div class="member-avatar">${initials(m.full_name)}</div>
     <div class="member-main"><strong>${esc(m.full_name)}</strong><small>${grade ? `Grade ${grade}` : 'Grade not set'} · ${esc(memberClass)}</small></div>
@@ -1940,19 +1950,29 @@ function memberEditorModal() {
 }
 
 function filterMemberDirectory() {
-  const q=(document.getElementById('memberSearch')?.value || '').trim().toLowerCase();
-  const unit=document.getElementById('memberUnitFilter')?.value || '';
-  const status=document.getElementById('memberStatusFilter')?.value || 'active';
+  const q=normalizeMemberSearch(document.getElementById('memberSearch')?.value || '');
+  const unit=String(document.getElementById('memberUnitFilter')?.value || '');
+  const status=String(document.getElementById('memberStatusFilter')?.value || 'active');
   let shown=0;
+
   document.querySelectorAll('[data-directory-member]').forEach(row=>{
-    const matchesText=!q || (row.dataset.search||'').includes(q);
-    const matchesUnit=!unit || row.dataset.unit===unit;
-    const isActive=row.dataset.active==='1';
-    const matchesStatus=status==='all' || (status==='active'&&isActive) || (status==='inactive'&&!isActive);
-    const show=matchesText&&matchesUnit&&matchesStatus;
-    row.hidden=!show; if(show) shown++;
+    const searchable=normalizeMemberSearch(row.dataset.search || '');
+    const matchesText=!q || searchable.includes(q);
+    const matchesUnit=!unit || String(row.dataset.unit || '')===unit;
+    const isActive=String(row.dataset.active)==='1';
+    const matchesStatus=status==='all'
+      || (status==='active' && isActive)
+      || (status==='inactive' && !isActive);
+    const show=matchesText && matchesUnit && matchesStatus;
+
+    row.hidden=!show;
+    row.classList.toggle('filtered-out',!show);
+    row.setAttribute('aria-hidden',show?'false':'true');
+    if(show) shown++;
   });
-  const empty=document.getElementById('memberNoResults'); if(empty) empty.hidden=shown!==0;
+
+  const empty=document.getElementById('memberNoResults');
+  if(empty) empty.hidden=shown!==0;
 }
 
 function updateClassSuggestion(autoApply=false) {
