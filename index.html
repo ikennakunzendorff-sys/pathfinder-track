@@ -158,8 +158,21 @@ button { cursor: pointer; }
   font-size:13px;
   font-weight:700;
 }
-.sidebar .pt-language-control{width:100%;margin:8px 0 12px}
-.sidebar .pt-language-control select{width:100%}
+.sidebar .pt-language-control{
+  width:100%;
+  margin:16px 0 14px;
+  padding:8px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:14px;
+  background:rgba(255,255,255,.06);
+}
+.sidebar .pt-language-control span{font-size:18px}
+.sidebar .pt-language-control select{
+  width:100%;
+  background:#fff;
+  color:#173f32;
+  border-color:rgba(255,255,255,.32);
+}
 .mobile-top .pt-language-control{margin:0}
 .mobile-top .pt-language-control select{min-width:86px;padding:7px 8px;font-size:12px}
 .login-card .pt-language-control{justify-content:flex-end;margin:0 0 14px}
@@ -1241,6 +1254,7 @@ function canManageMeetings() {
 function sidebar() {
   return `<aside class="sidebar">
     ${brand()}
+    ${languageControl()}
     <nav class="nav">
       <button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂ Dashboard</button>
       ${canManageMeetings()?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓ Meeting</button>`:''}
@@ -1256,7 +1270,7 @@ function sidebar() {
   </aside>`;
 }
 
-function mobileTop(){ return `<div class="mobile-top">${brand()}<div class="avatar">${initials(state.user.full_name)}</div></div>`; }
+function mobileTop(){ return `<div class="mobile-top">${brand()}<div style="display:flex;align-items:center;gap:9px">${languageControl()}<div class="avatar">${initials(state.user.full_name)}</div></div></div>`; }
 function bottomNav(){
   const admin=state.user.role==='director';
   const meetingAccess=canManageMeetings();
