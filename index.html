@@ -877,12 +877,16 @@ async function changeUnit(unitId) {
   renderApp();
 }
 
+function canManageMeetings() {
+  return state?.user?.role==='director' || (state?.user?.role==='instructor' && !!state?.user?.unit_id);
+}
+
 function sidebar() {
   return `<aside class="sidebar">
     ${brand()}
     <nav class="nav">
       <button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂ Dashboard</button>
-      <button class="${route==='meeting'?'active':''}" data-route="meeting">✓ Meeting</button>
+      ${canManageMeetings()?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓ Meeting</button>`:''}
       <button class="${route==='members'?'active':''}" data-route="members">♙ Members</button>
       <button class="${route==='classes'?'active':''}" data-route="classes">◫ Classes</button>
       ${state.user.role==='director'?`<button class="${route==='units'?'active':''}" data-route="units">◇ Units</button>`:''}
@@ -896,7 +900,12 @@ function sidebar() {
 }
 
 function mobileTop(){ return `<div class="mobile-top">${brand()}<div class="avatar">${initials(state.user.full_name)}</div></div>`; }
-function bottomNav(){ const admin=state.user.role==='director'; return `<nav class="bottom-nav" style="grid-template-columns:repeat(${admin?7:4},1fr)"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button><button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button><button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★<br>Scores</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button>`:''}</nav>`; }
+function bottomNav(){
+  const admin=state.user.role==='director';
+  const meetingAccess=canManageMeetings();
+  const count=admin?7:(meetingAccess?4:3);
+  return `<nav class="bottom-nav" style="grid-template-columns:repeat(${count},1fr)"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button>${meetingAccess?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button>`:''}<button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★<br>Scores</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button>`:''}</nav>`;
+}
 
 function dashboardGreeting(){
   const hour=new Date().getHours();
@@ -1009,10 +1018,13 @@ function unitDashboardView() {
     </section>
     <section class="grid content-grid">
       <div class="card">
-        <div class="next-meeting">
+        ${canManageMeetings()?`<div class="next-meeting">
           <div class="eyebrow">Next action</div><h2>Record today's meeting</h2><p>${state.meeting?.date || 'Current meeting'} · ${esc(state.unit.name)}</p>
           <div class="meeting-action"><span class="score-chip">45 pts max / Pathfinder</span><button class="btn" data-route="meeting">Open meeting →</button></div>
-        </div>
+        </div>`:`<div class="next-meeting">
+          <div class="eyebrow">Next action</div><h2>Continue class progress</h2><p>Your access is focused on the Pathfinder classes assigned to you.</p>
+          <div class="meeting-action"><span class="score-chip">Class instructor</span><button class="btn" data-route="classes">Open classes →</button></div>
+        </div>`}
         <div class="card-head"><div><h3>My unit</h3><p>Quick member overview</p></div><button class="btn btn-ghost" data-route="members">View all</button></div>
         <div class="card-body member-list">${members.length ? members.map(m=>`<div class="member-row"><div class="member-avatar">${initials(m.full_name)}</div><div><strong>${esc(m.full_name)}</strong><small>${esc(m.class)}${m.grade ? ` · Grade ${m.grade}`:''}</small></div><div class="points">${memberPoints(m)} pts</div></div>`).join('') : '<div class="empty">No members assigned yet.</div>'}</div>
       </div>
@@ -1475,7 +1487,7 @@ function staffEditorModal(){
         <div class="field"><label for="staffTitle">Club role / title</label><input id="staffTitle" list="staffTitleOptions" maxlength="80" placeholder="e.g. Secretary"><datalist id="staffTitleOptions"><option value="Director"><option value="Associate Director"><option value="Secretary"><option value="Counselor"><option value="Instructor"><option value="Chaplain"><option value="Treasurer"></datalist></div>
         <div class="field"><label for="staffRole">System access</label><select id="staffRole"><option value="director">Admin — whole club</option><option value="instructor" selected>Instructor — assigned scope</option><option value="viewer">Viewer — limited access</option></select></div>
         <div class="field full staff-scope" id="staffScopeWrap">
-          <div class="field"><label for="staffUnit">Primary unit</label><select id="staffUnit"><option value="">No unit</option>${activeUnits().map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select><div class="form-hint">Meeting access follows this unit.</div></div>
+          <div class="field"><label for="staffUnit">Primary unit</label><select id="staffUnit"><option value="">No unit</option>${activeUnits().map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select><div class="form-hint">Assign a primary unit only to counselors. Meeting access follows this unit.</div></div>
           <div class="field"><label>Authorized classes</label><div class="staff-class-options">${(state.classLevels||[]).map(c=>`<label class="staff-check"><input type="checkbox" data-staff-class value="${c.id}"> ${esc(c.name)}</label>`).join('')}</div><div class="form-hint">Class-progress access can include multiple classes.</div></div>
         </div>
       </div>
@@ -1746,6 +1758,7 @@ function scoreCard(m) {
 
 function renderApp() {
   if(!state) return loginView();
+  if(route==='meeting' && !canManageMeetings()) route='classes';
   app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():dashboardView())))))}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
