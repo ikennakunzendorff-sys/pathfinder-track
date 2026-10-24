@@ -139,6 +139,8 @@ button { cursor: pointer; }
 .mobile-unit-picker { display:none; margin:-12px 0 18px; }
 .mobile-staff-actions { display:none; margin:-12px 0 18px; }
 .mobile-staff-actions .btn { width:100%; }
+.mobile-meeting-actions { display:none; margin:-8px 0 18px; }
+.mobile-meeting-actions .btn { width:100%; }
 
 .pt-language-control{
   display:flex;
@@ -406,6 +408,7 @@ button { cursor: pointer; }
   .top-actions { display:none; }
   .mobile-unit-picker { display:block; }
   .mobile-staff-actions { display:block; }
+  .mobile-meeting-actions { display:block; }
   .stats { grid-template-columns: 1fr 1fr; gap:10px; }
   .stat { padding:16px; border-radius:17px; }
   .stat .value { font-size:26px; }
@@ -2816,7 +2819,8 @@ function specialEventView(){
   const points=Math.max(0,Number(m.unit_bonus_points||0));
   return `${mobileTop()}<div class="meeting-page">
     <div class="back-row"><button class="btn btn-ghost" data-route="dashboard">← Dashboard</button><span>Special event</span></div>
-    <div class="topbar"><div><div class="eyebrow">Special event</div><h1>${esc(m.title||'Special Event')}</h1><p>${esc(state.unit.name)} · ${esc(m.date||formatMeetingDate(m.meeting_date))}</p></div><div class="top-actions"><button class="btn btn-ghost" id="newMeetingBtn" style="width:auto">+ New meeting / event</button></div></div>
+    <div class="topbar"><div><div class="eyebrow">Special event</div><h1>${esc(m.title||'Special Event')}</h1><p>${esc(state.unit.name)} · ${esc(m.date||formatMeetingDate(m.meeting_date))}</p></div><div class="top-actions"><button class="btn btn-ghost" data-new-meeting style="width:auto">+ New meeting / event</button></div></div>
+    <div class="mobile-meeting-actions"><button class="btn btn-primary" data-new-meeting>+ New meeting / event</button></div>
     <div class="special-event-card">
       <span class="special-event-badge">★ Special unit points</span>
       <div class="special-event-points">+${points} pts</div>
@@ -2868,8 +2872,9 @@ function meetingView() {
   if(state.meeting?.meeting_type==='special') return specialEventView();
   return `${mobileTop()}<div class="meeting-page">
     <div class="back-row"><button class="btn btn-ghost" data-route="dashboard">← Dashboard</button><span>Meeting scoring</span></div>
-    <div class="topbar"><div><h1>Meeting · ${state.meeting?.date || 'Today'}</h1><p>${state.unit.name} · Tap each criterion to award or remove points.</p></div><div class="top-actions"><div class="meeting-tools">${unitPicker()}<button class="btn btn-ghost" id="newMeetingBtn" style="width:auto">+ New meeting / event</button></div></div></div>
+    <div class="topbar"><div><h1>Meeting · ${state.meeting?.date || 'Today'}</h1><p>${state.unit.name} · Tap each criterion to award or remove points.</p></div><div class="top-actions"><div class="meeting-tools">${unitPicker()}<button class="btn btn-ghost" data-new-meeting style="width:auto">+ New meeting / event</button></div></div></div>
     ${mobileUnitPicker()}
+    <div class="mobile-meeting-actions"><button class="btn btn-primary" data-new-meeting>+ New meeting / event</button></div>
     <div class="score-legend">${scoreCategories.map(c=>`<span class="legend-pill">${c.name} ${c.points} pts</span>`).join('')}<span class="legend-pill">Bonus optional</span></div>
     <div id="scoreList">${state.members.map(scoreCard).join('')}</div>
     <div class="sticky-save">
@@ -2899,7 +2904,7 @@ function renderApp() {
   document.querySelectorAll('[data-presence]').forEach(btn=>btn.onclick=()=>togglePresence(btn.dataset.presence));
   document.querySelectorAll('[data-score]').forEach(btn=>btn.onclick=()=>toggleScore(btn.dataset.score,btn.dataset.key));
   document.querySelectorAll('[data-open-meeting]').forEach(btn=>btn.onclick=()=>openSavedMeeting(btn.dataset.openMeeting));
-  const newMeetingBtn=document.getElementById('newMeetingBtn'); if(newMeetingBtn) newMeetingBtn.onclick=openMeetingCreator;
+  document.querySelectorAll('[data-new-meeting]').forEach(btn=>btn.onclick=openMeetingCreator);
   const closeMeetingCreatorBtn=document.getElementById('closeMeetingCreator'); if(closeMeetingCreatorBtn) closeMeetingCreatorBtn.onclick=closeMeetingCreator;
   const cancelMeetingCreatorBtn=document.getElementById('cancelMeetingCreator'); if(cancelMeetingCreatorBtn) cancelMeetingCreatorBtn.onclick=closeMeetingCreator;
   const meetingCreatorModalEl=document.getElementById('meetingCreatorModal'); if(meetingCreatorModalEl) meetingCreatorModalEl.onclick=e=>{ if(e.target===meetingCreatorModalEl) closeMeetingCreator(); };
