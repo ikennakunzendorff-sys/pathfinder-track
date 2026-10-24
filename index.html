@@ -1857,7 +1857,7 @@ function directorDashboardSnapshot(){
   const board=state.scoreboardLoaded ? scoreboardSnapshot() : {ranked:activeUnits.map((u,i)=>({id:u.id,name:u.name,active:true,members:unitMembers(u.id,true).length,points:0,possible:0,meetings:0,efficiency:0,attendancePct:0,attendanceRecords:0,rank:i+1})),meetingRows:[]};
   const totalPoints=board.ranked.reduce((sum,u)=>sum+Number(u.points||0),0);
   const totalPossible=board.ranked.reduce((sum,u)=>sum+Number(u.possible||0),0);
-  const totalMemberPoints=ranked.reduce((sum,u)=>sum+Number(u.memberPoints||0),0);
+  const totalMemberPoints=board.ranked.reduce((sum,u)=>sum+Number(u.memberPoints||0),0);
   const clubEfficiency=totalPossible?Math.round(totalMemberPoints/totalPossible*1000)/10:0;
   const attendanceRows=state.scoreboardAttendance||[];
   const present=attendanceRows.filter(a=>a.present===true).length;
@@ -2223,7 +2223,7 @@ function scoreboardView(){
   const leader=ranked.find(u=>u.points>0)||null;
   const totalPoints=ranked.reduce((sum,u)=>sum+u.points,0);
   const totalPossible=ranked.reduce((sum,u)=>sum+u.possible,0);
-  const totalMemberPoints=board.ranked.reduce((sum,u)=>sum+Number(u.memberPoints||0),0);
+  const totalMemberPoints=ranked.reduce((sum,u)=>sum+Number(u.memberPoints||0),0);
   const clubEfficiency=totalPossible?Math.round(totalMemberPoints/totalPossible*1000)/10:0;
   const scoredMeetings=meetingRows.length;
   const topPoints=Math.max(1,...ranked.map(u=>u.points));
