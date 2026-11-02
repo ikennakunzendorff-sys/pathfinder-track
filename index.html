@@ -2536,6 +2536,96 @@ function scoreboardView(){
 }
 
 
+function reportDateRange(){
+  return {
+    from:document.getElementById('reportFrom')?.value || state.clubYear?.start_date || '',
+    to:document.getElementById('reportTo')?.value || state.clubYear?.end_date || localISODate()
+  };
+}
+function reportUnitFilter(){ return document.getElementById('reportUnit')?.value || ''; }
+function reportMeetingsFiltered(){
+  const {from,to}=reportDateRange(), unit=reportUnitFilter();
+  return (state.scoreboardMeetings||[]).filter(m=>(!from||String(m.meeting_date)>=from)&&(!to||String(m.meeting_date)<=to)&&(!unit||String(m.unit_id)===String(unit)));
+}
+function reportScoreMaps(){
+  const scoreMap=new Map(), attendanceMap=new Map();
+  for(const row of state.scoreboardScores||[]){ const k=String(row.meeting_id); if(!scoreMap.has(k)) scoreMap.set(k,[]); scoreMap.get(k).push(row); }
+  for(const row of state.scoreboardAttendance||[]){ const k=String(row.meeting_id); if(!attendanceMap.has(k)) attendanceMap.set(k,[]); attendanceMap.get(k).push(row); }
+  return {scoreMap,attendanceMap};
+}
+function reportCsvEscape(v){ const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function currentReportData(){
+  const type=document.getElementById('reportType')?.value||'units';
+  return type==='members'?memberReportData():type==='classes'?classReportData():type==='meetings'?meetingReportData():unitReportData();
+}
+function unitReportData(){
+  const unitFilter=reportUnitFilter(), meetings=reportMeetingsFiltered(), maps=reportScoreMaps();
+  const rows=(state.units||[]).filter(u=>u.active!==false&&(!unitFilter||String(u.id)===String(unitFilter))).map(u=>{
+    const members=unitMembers(u.id,true), unitMeetings=meetings.filter(m=>String(m.unit_id)===String(u.id));
+    let memberPoints=0,specialPoints=0,present=0,attendanceRecords=0;
+    for(const mt of unitMeetings){
+      memberPoints+=(maps.scoreMap.get(String(mt.id))||[]).reduce((s,r)=>s+Number(r.points_awarded||0),0);
+      specialPoints+=Number(mt.unit_bonus_points||0);
+      const att=maps.attendanceMap.get(String(mt.id))||[]; present+=att.filter(a=>a.present===true).length; attendanceRecords+=att.length;
+    }
+    const attendancePct=attendanceRecords?Math.round(present/attendanceRecords*1000)/10:0;
+    return [u.name,members.length,unitCounselors(u.id,true).map(p=>p.full_name).join(', ')||'—',unitMeetings.length,attendancePct+'%',unitClassProgress(members)+'%',memberPoints,specialPoints,memberPoints+specialPoints];
+  });
+  return {title:'Unit report',subtitle:'Unit roster, attendance, class progress and accumulated scoring.',headers:['Unit','Active Pathfinders','Counselors','Meetings','Attendance','Class progress','Member points','Special points','Total points'],rows};
+}
+function memberReportData(){
+  const unitFilter=reportUnitFilter();
+  const byId=new Map((state.allMembers||[]).map(m=>[String(m.id),m]));
+  const rows=excellenceSnapshot().filter(x=>{ const m=byId.get(String(x.id)); return !unitFilter||String(m?.unit_id)===String(unitFilter); }).map(x=>[
+    x.name,x.unit,x.className,x.meetingCount,x.present+'/'+x.attendanceTotal,x.attendancePct+'%',x.earned+'/'+x.possible,x.scoreEfficiency+'%',x.classCompleted+'/'+x.classTotal,x.classPct+'%',x.eligible?x.excellence:'—',x.eligible?'Eligible':x.eligibilityReason
+  ]);
+  return {title:'Pathfinder report',subtitle:'Individual attendance, meeting scores, class progress and Excellence status.',headers:['Pathfinder','Unit','Class','Meeting opportunities','Presence','Attendance','Points','Efficiency','Class requirements','Class progress','Excellence','Status'],rows};
+}
+function classReportData(){
+  const unitFilter=reportUnitFilter();
+  const members=(state.allMembers||[]).filter(m=>m.active!==false&&(!unitFilter||String(m.unit_id)===String(unitFilter)));
+  const rows=(state.classLevels||[]).map(cl=>{
+    const roster=members.filter(m=>String(m.current_class_level_id)===String(cl.id));
+    const avg=roster.length?Math.round(roster.reduce((s,m)=>s+memberClassProgress(m).pct,0)/roster.length):0;
+    const instructors=(state.staffClassLinks||[]).filter(l=>String(l.class_level_id)===String(cl.id)).map(l=>(state.staff||[]).find(p=>String(p.id)===String(l.profile_id))?.full_name).filter(Boolean).join(', ')||'—';
+    return [cl.name,roster.length,requirementsForClass(cl.id,false).length,avg+'%',instructors,roster.map(m=>m.full_name).join('; ')||'—'];
+  }).filter(r=>r[1]>0||!unitFilter);
+  return {title:'Class report',subtitle:'Current class placement and core-requirement progress.',headers:['Class','Pathfinders','Core requirements','Average progress','Instructor(s)','Roster'],rows};
+}
+function meetingReportData(){
+  const maps=reportScoreMaps();
+  const rows=reportMeetingsFiltered().slice().sort((a,b)=>String(a.meeting_date).localeCompare(String(b.meeting_date))).map(m=>{
+    const scores=maps.scoreMap.get(String(m.id))||[], att=maps.attendanceMap.get(String(m.id))||[];
+    const memberPoints=scores.reduce((s,r)=>s+Number(r.points_awarded||0),0), possible=scores.reduce((s,r)=>s+Number(r.max_points_snapshot||0),0), special=Number(m.unit_bonus_points||0);
+    return [m.meeting_date,m.title||'Club Meeting',unitName(m.unit_id),(m.meeting_type||'regular')==='special'?'Special event':'Regular meeting',att.filter(a=>a.present===true).length+'/'+att.length,memberPoints,possible,special,memberPoints+special];
+  });
+  return {title:'Meeting report',subtitle:'Meeting history, attendance and saved scoring for the selected period.',headers:['Date','Title','Unit','Type','Presence','Member points','Possible points','Special points','Total points'],rows};
+}
+function reportSummaryCards(data){
+  const type=document.getElementById('reportType')?.value||'units', rows=data.rows||[];
+  if(type==='units') return [['Units',rows.length],['Pathfinders',rows.reduce((s,r)=>s+Number(r[1]||0),0)],['Meetings',rows.reduce((s,r)=>s+Number(r[3]||0),0)],['Total points',rows.reduce((s,r)=>s+Number(r[8]||0),0)]];
+  if(type==='members') return [['Pathfinders',rows.length],['Eligible',rows.filter(r=>r[11]==='Eligible').length],['Avg. efficiency',rows.length?Math.round(rows.reduce((s,r)=>s+Number(String(r[7]).replace('%','')||0),0)/rows.length*10)/10+'%':'0%'],['Year',state.clubYear?.label||'—']];
+  if(type==='classes') return [['Classes',rows.length],['Pathfinders',rows.reduce((s,r)=>s+Number(r[1]||0),0)],['Avg. progress',rows.length?Math.round(rows.reduce((s,r)=>s+Number(String(r[3]).replace('%','')||0),0)/rows.length)+'%':'0%'],['Year',state.clubYear?.label||'—']];
+  return [['Meetings',rows.length],['Special events',rows.filter(r=>r[3]==='Special event').length],['Total points',rows.reduce((s,r)=>s+Number(r[8]||0),0)],['Year',state.clubYear?.label||'—']];
+}
+function renderReportOutput(){
+  const host=document.getElementById('reportOutput'); if(!host) return;
+  const data=currentReportData(), summary=reportSummaryCards(data), range=reportDateRange(), unit=reportUnitFilter();
+  const filters=[state.clubYear?.label||'',unit?unitName(unit):'All units',range.from&&range.to?formatMeetingDate(range.from)+' – '+formatMeetingDate(range.to):''].filter(Boolean).join(' · ');
+  host.innerHTML=`<div class="report-print-meta"><strong>${esc(state.club.name)}</strong><br>${esc(filters)}</div><div class="report-heading"><h2>${esc(data.title)}</h2><p>${esc(data.subtitle)} · ${esc(filters)}</p></div><section class="report-summary">${summary.map(x=>`<div class="mini-stat"><span>${esc(x[0])}</span><strong>${esc(x[1])}</strong></div>`).join('')}</section><div class="report-table-wrap"><table class="report-table"><thead><tr>${data.headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${data.rows.length?data.rows.map(row=>`<tr>${row.map(cell=>`<td>${esc(cell)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${data.headers.length}" style="text-align:center;color:var(--muted);padding:28px">No data for the selected filters.</td></tr>`}</tbody></table></div>`;
+}
+function reportDownloadCsv(){
+  const data=currentReportData(); if(!data?.headers?.length) return;
+  const csv=[data.headers,...data.rows].map(row=>row.map(reportCsvEscape).join(',')).join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download='pathfinder-track-'+(document.getElementById('reportType')?.value||'report')+'-'+localISODate()+'.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function reportsView(){
+  if(state.mode!=='live'||state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">Reports are available to the club director.</div>`;
+  const start=state.clubYear?.start_date||'', end=state.clubYear?.end_date||localISODate();
+  return `${mobileTop()}<div class="reports-page"><div class="topbar"><div><div class="eyebrow">Club records</div><h1>Reports</h1><p>${esc(state.clubYear?.label||'Current club year')} · Generate operational reports from saved Pathfinder Track data.</p></div></div><section class="report-controls"><div class="field"><label for="reportType">Report</label><select id="reportType"><option value="units">Units</option><option value="members">Pathfinders</option><option value="classes">Classes</option><option value="meetings">Meetings</option></select></div><div class="field"><label for="reportUnit">Unit</label><select id="reportUnit"><option value="">All units</option>${(state.units||[]).filter(u=>u.active!==false).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select></div><div class="field"><label for="reportFrom">From</label><input id="reportFrom" type="date" value="${esc(start)}"></div><div class="field"><label for="reportTo">To</label><input id="reportTo" type="date" value="${esc(end)}"></div><button class="btn btn-ghost" id="reportCsvBtn" type="button">↓ CSV</button><button class="btn btn-primary" id="reportPrintBtn" type="button">Print / PDF</button></section><div id="reportOutput"></div></div>`;
+}
+
 function unitMembers(unitId,activeOnly=true){
   return (state.allMembers||[]).filter(m=>String(m.unit_id)===String(unitId) && (!activeOnly || m.active!==false));
 }
