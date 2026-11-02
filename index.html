@@ -1079,6 +1079,24 @@ const UI_TRANSLATIONS_AUDIT = {
     "No active Pathfinders are available for this ranking yet.":"Ainda não há Desbravadores ativos disponíveis para este ranking.",
     "Eligible":"Elegível",
     "In qualification":"Em qualificação",
+    "Reports":"Relatórios",
+    "Club records":"Registros do clube",
+    "Generate operational reports from saved Pathfinder Track data.":"Gere relatórios operacionais a partir dos dados salvos no Pathfinder Track.",
+    "Report":"Relatório",
+    "All units":"Todas as unidades",
+    "From":"De",
+    "To":"Até",
+    "Print / PDF":"Imprimir / PDF",
+    "Unit report":"Relatório de unidades",
+    "Pathfinder report":"Relatório de Desbravadores",
+    "Class report":"Relatório de classes",
+    "Meeting report":"Relatório de reuniões",
+    "No data for the selected filters.":"Nenhum dado para os filtros selecionados.",
+    "Reports are available to the club director.":"Os relatórios estão disponíveis para o diretor do clube.",
+    "Unit roster, attendance, class progress and accumulated scoring.":"Lista da unidade, presença, progresso de classe e pontuação acumulada.",
+    "Individual attendance, meeting scores, class progress and Excellence status.":"Presença individual, pontuação das reuniões, progresso de classe e status de Excelência.",
+    "Current class placement and core-requirement progress.":"Distribuição atual das classes e progresso dos requisitos regulares.",
+    "Meeting history, attendance and saved scoring for the selected period.":"Histórico de reuniões, presença e pontuação salva no período selecionado.",
     "Not ranked":"Sem classificação",
     "Needs 1 more meeting":"Precisa de mais 1 reunião",
     "Attendance below 60%":"Presença abaixo de 60%",
@@ -1241,6 +1259,24 @@ const UI_TRANSLATIONS_AUDIT = {
     "No active Pathfinders are available for this ranking yet.":"Aún no hay Conquistadores activos disponibles para esta clasificación.",
     "Eligible":"Elegible",
     "In qualification":"En calificación",
+    "Reports":"Informes",
+    "Club records":"Registros del club",
+    "Generate operational reports from saved Pathfinder Track data.":"Genera informes operativos a partir de los datos guardados en Pathfinder Track.",
+    "Report":"Informe",
+    "All units":"Todas las unidades",
+    "From":"Desde",
+    "To":"Hasta",
+    "Print / PDF":"Imprimir / PDF",
+    "Unit report":"Informe de unidades",
+    "Pathfinder report":"Informe de Conquistadores",
+    "Class report":"Informe de clases",
+    "Meeting report":"Informe de reuniones",
+    "No data for the selected filters.":"No hay datos para los filtros seleccionados.",
+    "Reports are available to the club director.":"Los informes están disponibles para el director del club.",
+    "Unit roster, attendance, class progress and accumulated scoring.":"Lista de la unidad, asistencia, progreso de clase y puntuación acumulada.",
+    "Individual attendance, meeting scores, class progress and Excellence status.":"Asistencia individual, puntuación de reuniones, progreso de clase y estado de Excelencia.",
+    "Current class placement and core-requirement progress.":"Distribución actual de clases y progreso de requisitos regulares.",
+    "Meeting history, attendance and saved scoring for the selected period.":"Historial de reuniones, asistencia y puntuación guardada del período seleccionado.",
     "Not ranked":"Sin clasificación",
     "Needs 1 more meeting":"Necesita 1 reunión más",
     "Attendance below 60%":"Asistencia inferior al 60%",
@@ -3327,6 +3363,10 @@ function renderApp() {
   const staffModal=document.getElementById('staffModal'); if(staffModal) staffModal.onclick=e=>{ if(e.target===staffModal) closeStaffEditor(); };
   document.querySelectorAll('[data-scoreboard-mode]').forEach(btn=>btn.onclick=()=>{ scoreboardMode=btn.dataset.scoreboardMode||'units'; renderApp(); });
   const refreshScoreboard=document.getElementById('refreshScoreboardBtn'); if(refreshScoreboard) refreshScoreboard.onclick=async()=>{ refreshScoreboard.disabled=true; refreshScoreboard.textContent='Refreshing…'; try{ await loadScoreboardData(true); renderApp(); }catch(err){ console.error(err); alert(translateUiString(err.message||'Scoreboard could not be refreshed.')); refreshScoreboard.disabled=false; refreshScoreboard.textContent='↻ Refresh scores'; } };
+  ['reportType','reportUnit','reportFrom','reportTo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.onchange=renderReportOutput; });
+  const reportCsvBtn=document.getElementById('reportCsvBtn'); if(reportCsvBtn) reportCsvBtn.onclick=reportDownloadCsv;
+  const reportPrintBtn=document.getElementById('reportPrintBtn'); if(reportPrintBtn) reportPrintBtn.onclick=()=>window.print();
+  if(route==='reports') renderReportOutput();
   if(route==='members') filterMemberDirectory();
 }
 
