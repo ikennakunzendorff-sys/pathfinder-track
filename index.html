@@ -1724,8 +1724,8 @@ async function refreshAuthSession(force=false){
     });
     let payload={};
     try{payload=await res.json();}catch{}
-    if(!res.ok || !payload.access_token){
-      if([400,401,403].includes(res.status)) clearAuthSession();
+    if(!res.ok || !payload.access_token || !payload.refresh_token){
+      if([400,401,403].includes(res.status) || res.ok) clearAuthSession();
       throw new Error(payload.error_description||payload.msg||payload.message||'Your session has expired. Please sign in again.');
     }
     return saveAuthSession(payload);
@@ -3617,13 +3617,7 @@ async function saveMeeting(btn){
     alert(translateUiString(err.message || 'The meeting could not be saved.'));
   }
 }
-async function signOut(){
-  const current=readAuthSession();
-  try{
-    if(current?.access_token){
-      await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${current.access_token}`}});
-    }
-  }catch{}
+function signOut(){
   clearAuthSession();
   scoreCategories=structuredClone(defaultScoreCategories);
   state=null; route='dashboard'; selectedClassId=null; selectedClassMemberId=null;
