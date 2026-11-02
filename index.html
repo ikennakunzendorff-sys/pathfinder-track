@@ -1134,6 +1134,38 @@ const UI_TRANSLATIONS_AUDIT = {
     "Eligible":"Elegível",
     "In qualification":"Em qualificação",
     "Reports":"Relatórios",
+    "History":"Histórico",
+    "Accountability":"Rastreabilidade",
+    "See who changed attendance, scores, requirements, members, meetings and club settings.":"Veja quem alterou presença, pontuação, requisitos, Desbravadores, reuniões e configurações do clube.",
+    "History is available to the club director.":"O histórico está disponível para o diretor do clube.",
+    "Loading the club audit trail…":"Carregando o histórico de auditoria do clube…",
+    "Loading history…":"Carregando histórico…",
+    "Type":"Tipo",
+    "Action":"Ação",
+    "Changed by":"Alterado por",
+    "All types":"Todos os tipos",
+    "Presence":"Presença",
+    "Meeting scores":"Pontuação das reuniões",
+    "Class requirements":"Requisitos de classe",
+    "Meetings / events":"Reuniões / eventos",
+    "Club years":"Anos do clube",
+    "Scoring criteria":"Critérios de pontuação",
+    "Club settings":"Configurações do clube",
+    "Class assignments":"Atribuições de classe",
+    "All actions":"Todas as ações",
+    "Everyone":"Todos",
+    "System":"Sistema",
+    "Changes":"Alterações",
+    "Actors":"Responsáveis",
+    "Meeting activity":"Atividade de reuniões",
+    "Latest change":"Última alteração",
+    "View changes":"Ver alterações",
+    "No changes match the selected filters.":"Nenhuma alteração corresponde aos filtros selecionados.",
+    "Historical class audit":"Auditoria histórica de classe",
+    "Automatic audit":"Auditoria automática",
+    "History could not be loaded.":"O histórico não pôde ser carregado.",
+    "History could not be refreshed.":"O histórico não pôde ser atualizado.",
+    "Refreshing…":"Atualizando…",
     "Administration":"Administração",
     "Club profile":"Perfil do clube",
     "These details identify the club throughout Pathfinder Track and reports.":"Estes dados identificam o clube em todo o Pathfinder Track e nos relatórios.",
@@ -1347,6 +1379,38 @@ const UI_TRANSLATIONS_AUDIT = {
     "Eligible":"Elegible",
     "In qualification":"En calificación",
     "Reports":"Informes",
+    "History":"Historial",
+    "Accountability":"Trazabilidad",
+    "See who changed attendance, scores, requirements, members, meetings and club settings.":"Consulta quién modificó asistencia, puntuación, requisitos, Conquistadores, reuniones y configuración del club.",
+    "History is available to the club director.":"El historial está disponible para el director del club.",
+    "Loading the club audit trail…":"Cargando el historial de auditoría del club…",
+    "Loading history…":"Cargando historial…",
+    "Type":"Tipo",
+    "Action":"Acción",
+    "Changed by":"Modificado por",
+    "All types":"Todos los tipos",
+    "Presence":"Asistencia",
+    "Meeting scores":"Puntuación de reuniones",
+    "Class requirements":"Requisitos de clase",
+    "Meetings / events":"Reuniones / eventos",
+    "Club years":"Años del club",
+    "Scoring criteria":"Criterios de puntuación",
+    "Club settings":"Configuración del club",
+    "Class assignments":"Asignaciones de clase",
+    "All actions":"Todas las acciones",
+    "Everyone":"Todos",
+    "System":"Sistema",
+    "Changes":"Cambios",
+    "Actors":"Responsables",
+    "Meeting activity":"Actividad de reuniones",
+    "Latest change":"Último cambio",
+    "View changes":"Ver cambios",
+    "No changes match the selected filters.":"Ningún cambio coincide con los filtros seleccionados.",
+    "Historical class audit":"Auditoría histórica de clase",
+    "Automatic audit":"Auditoría automática",
+    "History could not be loaded.":"No se pudo cargar el historial.",
+    "History could not be refreshed.":"No se pudo actualizar el historial.",
+    "Refreshing…":"Actualizando…",
     "Administration":"Administración",
     "Club profile":"Perfil del club",
     "These details identify the club throughout Pathfinder Track and reports.":"Estos datos identifican al club en Pathfinder Track y en los informes.",
@@ -2956,9 +3020,15 @@ function auditRelevantFields(log){
   return changed.filter(f=>!['id','club_id','created_by','recorded_by'].includes(f));
 }
 
+function auditText(en,pt,es){ return uiLanguage==='pt'?pt:(uiLanguage==='es'?es:en); }
+
 function auditActionLabel(action=''){
-  const map={insert:'Created',update:'Updated',delete:'Deleted',completed:'Completed',uncompleted:'Uncompleted'};
-  return map[action]||action||'Changed';
+  const maps={
+    en:{insert:'Created',update:'Updated',delete:'Deleted',completed:'Completed',uncompleted:'Uncompleted'},
+    pt:{insert:'Criado',update:'Atualizado',delete:'Apagado',completed:'Concluído',uncompleted:'Reaberto'},
+    es:{insert:'Creado',update:'Actualizado',delete:'Eliminado',completed:'Completado',uncompleted:'Reabierto'}
+  };
+  return (maps[uiLanguage]||maps.en)[action]||action||auditText('Changed','Alterado','Modificado');
 }
 
 function auditSummary(log){
@@ -2966,32 +3036,36 @@ function auditSummary(log){
   const oldData=log.old_data||{}, newData=log.new_data||{};
   if(log.entity_type==='attendance'){
     const value=newData.present ?? oldData.present;
-    return `${value===true?'Marked present':value===false?'Marked absent':'Presence updated'} · ${label}`;
+    const verb=value===true
+      ? auditText('Marked present','Marcou presença','Marcó presente')
+      : value===false
+        ? auditText('Marked absent','Marcou ausência','Marcó ausente')
+        : auditText('Presence updated','Presença atualizada','Asistencia actualizada');
+    return `${verb} · ${label}`;
   }
   if(log.entity_type==='meeting_scores'){
     const oldPts=oldData.points_awarded;
     const newPts=newData.points_awarded;
-    if(oldPts!==undefined && newPts!==undefined && oldPts!==newPts) return `Score changed ${oldPts} → ${newPts} · ${label}`;
-    if(newPts!==undefined) return `${newPts} points recorded · ${label}`;
-    return `Score record ${auditActionLabel(log.action).toLowerCase()} · ${label}`;
+    if(oldPts!==undefined && newPts!==undefined && oldPts!==newPts) return `${auditText('Score changed','Pontuação alterada','Puntuación modificada')} ${oldPts} → ${newPts} · ${label}`;
+    if(newPts!==undefined) return `${newPts} ${auditText('points recorded','pontos registrados','puntos registrados')} · ${label}`;
+    return `${auditText('Score record','Registro de pontuação','Registro de puntuación')} · ${label}`;
   }
   if(log.entity_type==='member_requirement_status'){
-    if(log.action==='completed') return `Requirement completed · ${label}`;
-    if(log.action==='uncompleted') return `Requirement reopened · ${label}`;
-    const status=newData.status??oldData.status;
-    return `Requirement ${status?String(status).replaceAll('_',' '):'updated'} · ${label}`;
+    if(log.action==='completed') return `${auditText('Requirement completed','Requisito concluído','Requisito completado')} · ${label}`;
+    if(log.action==='uncompleted') return `${auditText('Requirement reopened','Requisito reaberto','Requisito reabierto')} · ${label}`;
+    return `${auditText('Requirement updated','Requisito atualizado','Requisito actualizado')} · ${label}`;
   }
   if(log.entity_type==='club_years' && Array.isArray(log.changed_fields) && log.changed_fields.includes('active')){
-    return `${newData.active?'Club year activated':'Club year closed'} · ${label}`;
+    return `${newData.active?auditText('Club year activated','Ano do clube ativado','Año del club activado'):auditText('Club year closed','Ano do clube encerrado','Año del club cerrado')} · ${label}`;
   }
-  if(log.entity_type==='members') return `${auditActionLabel(log.action)} Pathfinder · ${label}`;
-  if(log.entity_type==='meetings') return `${auditActionLabel(log.action)} meeting/event · ${label}`;
-  if(log.entity_type==='profiles') return `${auditActionLabel(log.action)} staff record · ${label}`;
-  if(log.entity_type==='units') return `${auditActionLabel(log.action)} unit · ${label}`;
-  if(log.entity_type==='score_categories') return `${auditActionLabel(log.action)} scoring criterion · ${label}`;
-  if(log.entity_type==='club_settings') return 'Pathfinder Excellence settings updated';
-  if(log.entity_type==='clubs') return `Club profile ${auditActionLabel(log.action).toLowerCase()} · ${label}`;
-  if(log.entity_type==='instructor_class_levels') return `Class assignment ${auditActionLabel(log.action).toLowerCase()} · ${label}`;
+  if(log.entity_type==='members') return `${auditActionLabel(log.action)} · ${auditText('Pathfinder','Desbravador','Conquistador')} · ${label}`;
+  if(log.entity_type==='meetings') return `${auditActionLabel(log.action)} · ${auditText('meeting/event','reunião/evento','reunión/evento')} · ${label}`;
+  if(log.entity_type==='profiles') return `${auditActionLabel(log.action)} · ${auditText('staff record','registro da diretoria','registro de directiva')} · ${label}`;
+  if(log.entity_type==='units') return `${auditActionLabel(log.action)} · ${auditText('unit','unidade','unidad')} · ${label}`;
+  if(log.entity_type==='score_categories') return `${auditActionLabel(log.action)} · ${auditText('scoring criterion','critério de pontuação','criterio de puntuación')} · ${label}`;
+  if(log.entity_type==='club_settings') return auditText('Pathfinder Excellence settings updated','Configurações do Desbravador Excelência atualizadas','Configuración de Conquistador Excelencia actualizada');
+  if(log.entity_type==='clubs') return `${auditText('Club profile','Perfil do clube','Perfil del club')} · ${auditActionLabel(log.action)} · ${label}`;
+  if(log.entity_type==='instructor_class_levels') return `${auditText('Class assignment','Atribuição de classe','Asignación de clase')} · ${auditActionLabel(log.action)} · ${label}`;
   return `${auditActionLabel(log.action)} · ${label}`;
 }
 
@@ -4027,10 +4101,27 @@ function renderApp() {
   document.querySelectorAll('[data-save-score-category]').forEach(btn=>btn.onclick=()=>saveScoreCategory(btn.dataset.saveScoreCategory));
   const addScoreCategoryForm=document.getElementById('addScoreCategoryForm'); if(addScoreCategoryForm) addScoreCategoryForm.onsubmit=addScoreCategory;
   const excellenceSettingsForm=document.getElementById('excellenceSettingsForm'); if(excellenceSettingsForm) excellenceSettingsForm.onsubmit=saveExcellenceSettings;
+  ['historyType','historyAction','historyActor','historyFrom','historyTo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.onchange=renderHistoryResults; });
+  const historySearch=document.getElementById('historySearch'); if(historySearch) historySearch.oninput=renderHistoryResults;
+  const refreshHistoryBtn=document.getElementById('refreshHistoryBtn'); if(refreshHistoryBtn) refreshHistoryBtn.onclick=async()=>{ refreshHistoryBtn.disabled=true; refreshHistoryBtn.textContent='Refreshing…'; try{ await loadAuditData(true); renderApp(); }catch(err){ console.error(err); alert(translateUiString(err.message||'History could not be refreshed.')); refreshHistoryBtn.disabled=false; refreshHistoryBtn.textContent='↻ Refresh'; } };
+  if(route==='history') renderHistoryResults();
   if(route==='members') filterMemberDirectory();
 }
 
-function bindNavigation(){ document.querySelectorAll('[data-route]').forEach(el=>el.onclick=async()=>{ route=el.dataset.route; renderApp(); if(['dashboard','scoreboard','reports'].includes(route) && state?.mode==='live' && state?.user?.role==='director' && !state.scoreboardLoaded){ try{ await loadScoreboardData(); renderApp(); }catch(err){ console.error(err); if(route==='scoreboard') alert(translateUiString(err.message||'Scoreboard could not be loaded.')); } } }); }
+function bindNavigation(){
+  document.querySelectorAll('[data-route]').forEach(el=>el.onclick=async()=>{
+    route=el.dataset.route;
+    renderApp();
+    if(['dashboard','scoreboard','reports'].includes(route) && state?.mode==='live' && state?.user?.role==='director' && !state.scoreboardLoaded){
+      try{ await loadScoreboardData(); renderApp(); }
+      catch(err){ console.error(err); if(route==='scoreboard') alert(translateUiString(err.message||'Scoreboard could not be loaded.')); }
+    }
+    if(route==='history' && state?.mode==='live' && state?.user?.role==='director' && !state.auditLoaded){
+      try{ await loadAuditData(); renderApp(); }
+      catch(err){ console.error(err); alert(translateUiString(err.message||'History could not be loaded.')); }
+    }
+  });
+}
 function togglePresence(id){ const m=state.members.find(x=>String(x.id)===String(id)); m.present=!m.present; if(!m.present) Object.keys(m.scores||{}).forEach(k=>m.scores[k]=false); else scoreCategories.forEach(c=>m.scores[c.key]=true); renderApp(); }
 function toggleScore(id,key){ const m=state.members.find(x=>String(x.id)===String(id)); if(!m.present) return; m.scores ||= {}; m.scores[key]=!m.scores[key]; renderApp(); }
 async function deleteMeeting(btn){
