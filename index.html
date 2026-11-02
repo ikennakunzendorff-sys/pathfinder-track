@@ -1644,6 +1644,123 @@ let selectedClassId = null;
 let selectedClassMemberId = null;
 let scoreboardMode = 'units';
 
+const AUTH_SESSION_KEY='pt_auth_session';
+const LEGACY_ACCESS_KEY='pt_access_token';
+let authRefreshPromise=null;
+let authRefreshTimer=null;
+
+function jwtExpiresAt(token=''){
+  try{
+    const part=String(token).split('.')[1];
+    if(!part) return null;
+    const base64=part.replace(/-/g,'+').replace(/_/g,'/');
+    const padded=base64+'='.repeat((4-base64.length%4)%4);
+    const payload=JSON.parse(atob(padded));
+    return Number(payload.exp)||null;
+  }catch{ return null; }
+}
+
+function readAuthSession(){
+  try{
+    const raw=localStorage.getItem(AUTH_SESSION_KEY);
+    if(raw){
+      const parsed=JSON.parse(raw);
+      if(parsed?.access_token) return parsed;
+    }
+  }catch{}
+  const legacy=localStorage.getItem(LEGACY_ACCESS_KEY);
+  return legacy ? {access_token:legacy,refresh_token:null,expires_at:jwtExpiresAt(legacy)} : null;
+}
+
+function scheduleAuthRefresh(session){
+  if(authRefreshTimer){ clearTimeout(authRefreshTimer); authRefreshTimer=null; }
+  if(!session?.refresh_token || !session?.expires_at) return;
+  const delay=Math.max(5000,Math.min(2147480000,Number(session.expires_at)*1000-Date.now()-120000));
+  authRefreshTimer=setTimeout(()=>{
+    refreshAuthSession(true).catch(err=>{
+      console.warn('Session refresh deferred.',err);
+      if(readAuthSession()?.refresh_token) authRefreshTimer=setTimeout(()=>refreshAuthSession(true).catch(()=>{}),60000);
+    });
+  },delay);
+}
+
+function saveAuthSession(payload={}){
+  const accessToken=payload.access_token;
+  if(!accessToken) throw new Error('Authentication session is missing an access token.');
+  const previous=readAuthSession();
+  const expiresAt=Number(payload.expires_at)
+    || (Number(payload.expires_in)?Math.floor(Date.now()/1000)+Number(payload.expires_in):null)
+    || jwtExpiresAt(accessToken);
+  const session={
+    access_token:accessToken,
+    refresh_token:payload.refresh_token || previous?.refresh_token || null,
+    expires_at:expiresAt
+  };
+  localStorage.setItem(AUTH_SESSION_KEY,JSON.stringify(session));
+  localStorage.removeItem(LEGACY_ACCESS_KEY);
+  if(state?.mode==='live') state.token=session.access_token;
+  scheduleAuthRefresh(session);
+  return session;
+}
+
+function clearAuthSession(){
+  if(authRefreshTimer){ clearTimeout(authRefreshTimer); authRefreshTimer=null; }
+  localStorage.removeItem(AUTH_SESSION_KEY);
+  localStorage.removeItem(LEGACY_ACCESS_KEY);
+}
+
+async function refreshAuthSession(force=false){
+  if(authRefreshPromise) return authRefreshPromise;
+  authRefreshPromise=(async()=>{
+    const current=readAuthSession();
+    if(!current?.refresh_token) throw new Error('Session refresh is unavailable. Please sign in again.');
+    const remaining=current.expires_at?Number(current.expires_at)*1000-Date.now():0;
+    if(!force && remaining>120000) return current;
+
+    const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{
+      method:'POST',
+      headers:{apikey:SUPABASE_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:current.refresh_token})
+    });
+    let payload={};
+    try{payload=await res.json();}catch{}
+    if(!res.ok || !payload.access_token){
+      if([400,401,403].includes(res.status)) clearAuthSession();
+      throw new Error(payload.error_description||payload.msg||payload.message||'Your session has expired. Please sign in again.');
+    }
+    return saveAuthSession(payload);
+  })();
+  try{return await authRefreshPromise;}
+  finally{authRefreshPromise=null;}
+}
+
+async function getValidAccessToken(fallbackToken=null,forceRefresh=false){
+  const current=readAuthSession();
+  if(current?.access_token){
+    const remaining=current.expires_at?Number(current.expires_at)*1000-Date.now():Infinity;
+    if(current.refresh_token && (forceRefresh || remaining<=120000)){
+      const refreshed=await refreshAuthSession(true);
+      return refreshed.access_token;
+    }
+    return current.access_token;
+  }
+  if(fallbackToken) return fallbackToken;
+  throw new Error('Authentication required.');
+}
+
+async function authenticatedFetch(url,options={},fallbackToken=null,retry=true){
+  const token=await getValidAccessToken(fallbackToken,false);
+  const headers=new Headers(options.headers||{});
+  if(!headers.has('apikey')) headers.set('apikey',SUPABASE_KEY);
+  headers.set('Authorization',`Bearer ${token}`);
+  const res=await fetch(url,{...options,headers});
+  if(res.status===401 && retry && readAuthSession()?.refresh_token){
+    await refreshAuthSession(true);
+    return authenticatedFetch(url,options,null,false);
+  }
+  return res;
+}
+
 function iconPath() {
   return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 18.2C8.8 16.8 8.3 11.6 12 10.3c3.8-1.3 4.7 3 7 1.9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="18" r="2" fill="currentColor"/><path d="M12.2 4.2c2.2 0 4 1.8 4 4 0 3-4 6.2-4 6.2s-4-3.2-4-6.2c0-2.2 1.8-4 4-4Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12.2" cy="8.2" r="1.2" fill="currentColor"/></svg>`;
 }
@@ -1726,14 +1843,17 @@ function inviteSessionFromHash(){
   if(!location.hash) return null;
   const params=new URLSearchParams(location.hash.replace(/^#/,'').trim());
   const accessToken=params.get('access_token');
+  const refreshToken=params.get('refresh_token');
+  const expiresIn=params.get('expires_in');
+  const expiresAt=params.get('expires_at');
   const type=params.get('type');
   const error=params.get('error_description') || params.get('error');
   if(error) return {error};
-  if(accessToken && ['invite','recovery','signup'].includes(type)) return {accessToken,type};
+  if(accessToken && ['invite','recovery','signup'].includes(type)) return {accessToken,refreshToken,expiresIn,expiresAt,type};
   return null;
 }
 
-function passwordSetupView(accessToken,type='invite'){
+function passwordSetupView(accessToken,type='invite',refreshToken=null,expiresIn=null,expiresAt=null){
   app.innerHTML=`<div class="login-page shell">
     <section class="hero">${brand()}<div class="hero-copy"><div class="eyebrow">${type==='recovery'?'Secure account':type==='signup'?'Email confirmed':'Invitation accepted'}</div><h1>Create your password.</h1><p>Finish setting up your Pathfinder Track account. Your club access has already been assigned by the director.</p></div><div class="hero-foot">Pathfinder Track · Secure activation</div></section>
     <section class="login-wrap"><form class="login-card" id="passwordSetupForm"><div class="eyebrow">Account activation</div><h2>Set password</h2><p>Use at least 8 characters. A password manager is recommended.</p>
@@ -1751,7 +1871,7 @@ function passwordSetupView(accessToken,type='invite'){
       const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{method:'PUT',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({password})});
       let payload={}; try{payload=await res.json();}catch{}
       if(!res.ok) throw new Error(payload.msg||payload.message||payload.error_description||'Password could not be set.');
-      localStorage.setItem('pt_access_token',accessToken);
+      saveAuthSession({access_token:accessToken,refresh_token:refreshToken,expires_in:expiresIn,expires_at:expiresAt});
       history.replaceState({},document.title,location.pathname+location.search);
       await loadAuthenticatedState(accessToken); route='dashboard'; renderApp();
     }catch(err){ console.error(err); msg.textContent=err.message||'Account activation failed.'; btn.disabled=false; btn.textContent='Activate account'; }
@@ -1798,7 +1918,7 @@ function loginView() {
       });
       const session = await auth.json();
       if(!auth.ok) throw new Error(session.error_description || session.msg || 'Unable to sign in.');
-      localStorage.setItem('pt_access_token', session.access_token);
+      saveAuthSession(session);
       await loadAuthenticatedState(session.access_token);
       route='dashboard'; renderApp();
     } catch(err) { msg.textContent = err.message; }
@@ -1806,50 +1926,51 @@ function loginView() {
 }
 
 async function sb(path, token) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${token}`, Accept:'application/json' } });
+  const res=await authenticatedFetch(`${SUPABASE_URL}/rest/v1/${path}`,{
+    headers:{Accept:'application/json'}
+  },token);
   if(!res.ok) throw new Error(`Data request failed (${res.status}).`);
   return res.json();
 }
 
 async function sbWrite(path, token, { method='POST', body, prefer='return=minimal' }={}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const res=await authenticatedFetch(`${SUPABASE_URL}/rest/v1/${path}`,{
     method,
     headers:{
-      apikey:SUPABASE_KEY,
-      Authorization:`Bearer ${token}`,
       Accept:'application/json',
       'Content-Type':'application/json',
       Prefer:prefer
     },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  });
-  if(!res.ok) {
-    let detail = '';
-    try { const payload = await res.json(); detail = payload.message || payload.details || payload.hint || ''; } catch {}
-    throw new Error(detail || `Save failed (${res.status}).`);
+    body:body===undefined?undefined:JSON.stringify(body)
+  },token);
+  if(!res.ok){
+    let detail='';
+    try{const payload=await res.json();detail=payload.message||payload.details||payload.hint||'';}catch{}
+    throw new Error(detail||`Save failed (${res.status}).`);
   }
-  if(res.status === 204) return null;
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
+  if(res.status===204) return null;
+  const text=await res.text();
+  return text?JSON.parse(text):null;
 }
 
 async function callEdgeFunction(name, body) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+  const res=await authenticatedFetch(`${SUPABASE_URL}/functions/v1/${name}`,{
     method:'POST',
-    headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${state.token}`, 'Content-Type':'application/json' },
+    headers:{'Content-Type':'application/json'},
     body:JSON.stringify(body)
   });
   let payload={};
-  try { payload=await res.json(); } catch {}
-  if(!res.ok) throw new Error(payload.error || payload.message || `Request failed (${res.status}).`);
+  try{payload=await res.json();}catch{}
+  if(!res.ok) throw new Error(payload.error||payload.message||`Request failed (${res.status}).`);
   return payload;
 }
 
 async function loadAuthenticatedState(token) {
-  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${token}` } });
+  const activeToken=await getValidAccessToken(token,false);
+  const userRes=await authenticatedFetch(`${SUPABASE_URL}/auth/v1/user`,{},activeToken);
   if(!userRes.ok) throw new Error('Your session could not be loaded.');
-  const authUser = await userRes.json();
-  const profiles = await sb(`profiles?id=eq.${encodeURIComponent(authUser.id)}&select=id,full_name,email,position_title,role,club_id,unit_id,active`, token);
+  const authUser=await userRes.json();
+  const profiles=await sb(`profiles?id=eq.${encodeURIComponent(authUser.id)}&select=id,full_name,email,position_title,role,club_id,unit_id,active`,activeToken);
   const profile = profiles[0];
   if(!profile) throw new Error('Your Pathfinder Track profile is not configured yet.');
   if(profile.active===false) throw new Error('Your Pathfinder Track access is inactive. Contact your club director.');
@@ -1857,17 +1978,17 @@ async function loadAuthenticatedState(token) {
 
   const today = localISODate();
   const [clubs, units, members, categories, meetings, clubYears, classLevels, requirements, requirementStatuses, staffProfiles, staffClassLinks] = await Promise.all([
-    sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, token),
-    profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name,active,created_at`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,active,created_at&order=name`, token),
-    sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,created_at,class_levels(name)&order=full_name`, token),
-    sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,name,default_points,is_bonus,sort_order&order=sort_order`, token),
-    sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id,club_year_id,meeting_type,unit_bonus_points&order=meeting_date.desc&limit=100`, token),
-    sb(`club_years?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,label,start_date,end_date&order=start_date.desc&limit=1`, token),
-    sb(`class_levels?select=id,name,order_index&order=order_index`, token),
-    sb(`requirements?select=id,class_level_id,code,title,description,category,sort_index,is_advanced&order=sort_index`, token),
-    sb(`member_requirement_status?select=id,member_id,requirement_id,status,completed_at,signed_by,notes,updated_at`, token),
-    profile.role==='director' ? sb(`profiles?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,email,position_title,role,club_id,unit_id,active&order=full_name`, token) : Promise.resolve([]),
-    ['director','instructor'].includes(profile.role) ? sb(`instructor_class_levels?select=profile_id,class_level_id`, token) : Promise.resolve([]),
+    sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, activeToken),
+    profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name,active,created_at`, activeToken) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,active,created_at&order=name`, activeToken),
+    sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,created_at,class_levels(name)&order=full_name`, activeToken),
+    sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,name,default_points,is_bonus,sort_order&order=sort_order`, activeToken),
+    sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id,club_year_id,meeting_type,unit_bonus_points&order=meeting_date.desc&limit=100`, activeToken),
+    sb(`club_years?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,label,start_date,end_date&order=start_date.desc&limit=1`, activeToken),
+    sb(`class_levels?select=id,name,order_index&order=order_index`, activeToken),
+    sb(`requirements?select=id,class_level_id,code,title,description,category,sort_index,is_advanced&order=sort_index`, activeToken),
+    sb(`member_requirement_status?select=id,member_id,requirement_id,status,completed_at,signed_by,notes,updated_at`, activeToken),
+    profile.role==='director' ? sb(`profiles?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,email,position_title,role,club_id,unit_id,active&order=full_name`, activeToken) : Promise.resolve([]),
+    ['director','instructor'].includes(profile.role) ? sb(`instructor_class_levels?select=profile_id,class_level_id`, activeToken) : Promise.resolve([]),
   ]);
 
   const liveCategories = categories
@@ -1883,7 +2004,7 @@ async function loadAuthenticatedState(token) {
     || null;
 
   state = {
-    mode:'live', token,
+    mode:'live', token:readAuthSession()?.access_token||activeToken,
     user:profile,
     club:clubs[0] || {name:'My Club'},
     units,
@@ -3496,7 +3617,18 @@ async function saveMeeting(btn){
     alert(translateUiString(err.message || 'The meeting could not be saved.'));
   }
 }
-function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=structuredClone(defaultScoreCategories); state=null; route='dashboard'; selectedClassId=null; selectedClassMemberId=null; loginView(); }
+async function signOut(){
+  const current=readAuthSession();
+  try{
+    if(current?.access_token){
+      await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${current.access_token}`}});
+    }
+  }catch{}
+  clearAuthSession();
+  scoreCategories=structuredClone(defaultScoreCategories);
+  state=null; route='dashboard'; selectedClassId=null; selectedClassMemberId=null;
+  loginView();
+}
 
 (async function boot(){
   startUiLanguageObserver();
@@ -3505,21 +3637,39 @@ function signOut(){ localStorage.removeItem('pt_access_token'); scoreCategories=
     app.innerHTML=`<div class="loading">Invitation error: ${esc(inviteSession.error)}</div>`;
     return;
   }
-  if(inviteSession?.accessToken){ passwordSetupView(inviteSession.accessToken,inviteSession.type); return; }
+  if(inviteSession?.accessToken){ passwordSetupView(inviteSession.accessToken,inviteSession.type,inviteSession.refreshToken,inviteSession.expiresIn,inviteSession.expiresAt); return; }
   const params = new URLSearchParams(location.search);
   if(params.get('demo') === '1') {
     state = structuredClone(demoState);
     route = ['meeting','members','classes'].includes(params.get('view')) ? params.get('view') : 'dashboard';
     renderApp();
   } else {
-    const token = localStorage.getItem('pt_access_token');
-    if(token){
+    const storedSession=readAuthSession();
+    if(storedSession?.access_token){
       app.innerHTML='<div class="loading">Loading Pathfinder Track…</div>';
-      try { await loadAuthenticatedState(token); renderApp(); }
-      catch { localStorage.removeItem('pt_access_token'); loginView(); }
-    } else loginView();
+      try{
+        scheduleAuthRefresh(storedSession);
+        const token=await getValidAccessToken(storedSession.access_token,false);
+        await loadAuthenticatedState(token);
+        renderApp();
+      }catch(err){
+        console.warn('Stored session could not be restored.',err);
+        clearAuthSession();
+        loginView();
+      }
+    }else loginView();
   }
-  if('serviceWorker' in navigator) {
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible' && state?.mode==='live' && readAuthSession()?.refresh_token){
+      getValidAccessToken(null,false).catch(err=>console.warn('Session check failed.',err));
+    }
+  });
+  window.addEventListener('online',()=>{
+    if(state?.mode==='live' && readAuthSession()?.refresh_token){
+      getValidAccessToken(null,false).catch(err=>console.warn('Session check failed.',err));
+    }
+  });
+    if('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(registrations=>{
       registrations.forEach(registration=>registration.unregister());
     }).catch(()=>{});
