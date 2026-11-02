@@ -417,7 +417,8 @@ button { cursor: pointer; }
   .card-head, .card-body { padding-left:17px; padding-right:17px; }
   .criteria { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .criterion:last-child { grid-column: 1 / -1; }
-  .bottom-nav { display:grid; grid-template-columns:repeat(4,1fr); position:fixed; bottom:0; left:0; right:0; z-index:50; background:rgba(255,255,255,.94); border-top:1px solid var(--line); backdrop-filter:blur(18px); padding:8px 8px max(8px, env(safe-area-inset-bottom)); }
+  .bottom-nav { display:grid; position:fixed; bottom:0; left:0; right:0; z-index:50; background:rgba(255,255,255,.94); border-top:1px solid var(--line); backdrop-filter:blur(18px); padding:8px 8px max(8px, env(safe-area-inset-bottom)); overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; }
+  .bottom-nav::-webkit-scrollbar { display:none; }
   .bottom-nav button { border:0; background:transparent; padding:9px 3px; color:var(--muted); font-size:11px; font-weight:750; text-transform:capitalize; }
   .bottom-nav button.active { color:var(--forest-800); }
 }
@@ -545,6 +546,32 @@ button { cursor: pointer; }
 .scoreboard-empty { padding:28px 18px; text-align:center; color:var(--muted); font-size:12px; }
 @media (max-width:960px){ .scoreboard-hero { grid-template-columns:1fr 1fr; } .scoreboard-leader { grid-column:1/-1; } .scoreboard-grid { grid-template-columns:1fr; } }
 @media (max-width:650px){ .scoreboard-hero { grid-template-columns:1fr 1fr; } .scoreboard-row { grid-template-columns:38px minmax(0,1fr) 82px; } .scoreboard-progress { grid-column:2/4; } .scoreboard-kpi { padding:14px; } .scoreboard-kpi strong { font-size:23px; } }
+
+.reports-page { max-width:1180px; }
+.report-controls { display:grid; grid-template-columns:1.15fr 1fr 1fr 1fr auto auto; gap:10px; align-items:end; margin-bottom:16px; padding:14px; background:white; border:1px solid var(--line); border-radius:20px; box-shadow:0 8px 24px rgba(23,63,50,.04); }
+.report-controls .field { margin:0; }
+.report-controls .btn { width:auto; white-space:nowrap; }
+.report-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+.report-table-wrap { overflow:auto; background:white; border:1px solid var(--line); border-radius:20px; box-shadow:0 8px 26px rgba(23,63,50,.045); }
+.report-table { width:100%; border-collapse:collapse; min-width:760px; }
+.report-table th { text-align:left; padding:11px 13px; background:#f6f8f7; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--line); position:sticky; top:0; }
+.report-table td { padding:11px 13px; border-bottom:1px solid var(--line); font-size:12px; vertical-align:top; }
+.report-table tr:last-child td { border-bottom:0; }
+.report-heading { margin:0 0 14px; }
+.report-heading h2 { margin:0; font-size:20px; }
+.report-heading p { margin:4px 0 0; color:var(--muted); font-size:11px; }
+.report-print-meta { display:none; }
+@media (max-width:980px){ .report-controls { grid-template-columns:1fr 1fr 1fr; } .report-controls .btn { width:100%; } .report-summary { grid-template-columns:1fr 1fr; } }
+@media (max-width:650px){ .report-controls { grid-template-columns:1fr 1fr; } .report-controls .field:first-child { grid-column:1/-1; } .report-controls .btn { width:100%; } .report-summary { grid-template-columns:1fr 1fr; } }
+@media print {
+  body { padding:0 !important; background:white !important; }
+  .sidebar,.bottom-nav,.mobile-top,.report-controls,.topbar { display:none !important; }
+  .app-layout,.main,.reports-page { display:block !important; width:100% !important; max-width:none !important; padding:0 !important; margin:0 !important; }
+  .report-print-meta { display:block !important; margin-bottom:14px; color:#555; font-size:11px; }
+  .report-table-wrap { overflow:visible !important; border:0 !important; box-shadow:none !important; }
+  .report-table { min-width:0 !important; font-size:10px; }
+  .report-table th { position:static !important; }
+}
 
 .director-dashboard { max-width:1120px; }
 .director-hero { background:linear-gradient(135deg,var(--forest-900),var(--forest-700)); color:white; border-radius:26px; padding:24px; display:grid; grid-template-columns:minmax(0,1.4fr) auto; gap:18px; align-items:end; margin-bottom:14px; box-shadow:0 14px 36px rgba(23,63,50,.12); }
@@ -1921,6 +1948,7 @@ function sidebar() {
       ${state.user.role==='director'?`<button class="${route==='units'?'active':''}" data-route="units">◇ Units</button>`:''}
       ${state.user.role==='director'?`<button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★ Scoreboard</button>`:''}
       ${state.user.role==='director'?`<button class="${route==='staff'?'active':''}" data-route="staff">♜ Staff</button>`:''}
+      ${state.user.role==='director'?`<button class="${route==='reports'?'active':''}" data-route="reports">▤ Reports</button>`:''}
       ${state.user.role==='director'?'<button>⚙ Settings</button>':''}
     </nav>
     <div class="sidebar-spacer"></div>
@@ -1932,8 +1960,9 @@ function mobileTop(){ return `<div class="mobile-top">${brand()}<div style="disp
 function bottomNav(){
   const admin=state.user.role==='director';
   const meetingAccess=canManageMeetings();
-  const count=admin?7:(meetingAccess?4:3);
-  return `<nav class="bottom-nav" style="grid-template-columns:repeat(${count},1fr)"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button>${meetingAccess?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button>`:''}<button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★<br>Scores</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button>`:''}</nav>`;
+  const count=admin?8:(meetingAccess?4:3);
+  const min=admin?'56px':'1fr';
+  return `<nav class="bottom-nav" style="grid-template-columns:repeat(${count},minmax(${min},1fr));"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button>${meetingAccess?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button>`:''}<button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★<br>Scores</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button><button class="${route==='reports'?'active':''}" data-route="reports">▤<br>Reports</button>`:''}</nav>`;
 }
 
 function dashboardGreeting(){
@@ -3157,7 +3186,7 @@ function scoreCard(m) {
 function renderApp() {
   if(!state) return loginView();
   if(route==='meeting' && !canManageMeetings()) route='classes';
-  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():dashboardView())))))}</main></div>${bottomNav()}`;
+  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():(route==='reports'?reportsView():dashboardView()))))))}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
   ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(translateUiString(err.message || 'Unit could not be loaded.')); renderApp(); } }; });
@@ -3211,7 +3240,7 @@ function renderApp() {
   if(route==='members') filterMemberDirectory();
 }
 
-function bindNavigation(){ document.querySelectorAll('[data-route]').forEach(el=>el.onclick=async()=>{ route=el.dataset.route; renderApp(); if(['dashboard','scoreboard'].includes(route) && state?.mode==='live' && state?.user?.role==='director' && !state.scoreboardLoaded){ try{ await loadScoreboardData(); renderApp(); }catch(err){ console.error(err); if(route==='scoreboard') alert(translateUiString(err.message||'Scoreboard could not be loaded.')); } } }); }
+function bindNavigation(){ document.querySelectorAll('[data-route]').forEach(el=>el.onclick=async()=>{ route=el.dataset.route; renderApp(); if(['dashboard','scoreboard','reports'].includes(route) && state?.mode==='live' && state?.user?.role==='director' && !state.scoreboardLoaded){ try{ await loadScoreboardData(); renderApp(); }catch(err){ console.error(err); if(route==='scoreboard') alert(translateUiString(err.message||'Scoreboard could not be loaded.')); } } }); }
 function togglePresence(id){ const m=state.members.find(x=>String(x.id)===String(id)); m.present=!m.present; if(!m.present) Object.keys(m.scores||{}).forEach(k=>m.scores[k]=false); else scoreCategories.forEach(c=>m.scores[c.key]=true); renderApp(); }
 function toggleScore(id,key){ const m=state.members.find(x=>String(x.id)===String(id)); if(!m.present) return; m.scores ||= {}; m.scores[key]=!m.scores[key]; renderApp(); }
 async function deleteMeeting(btn){
