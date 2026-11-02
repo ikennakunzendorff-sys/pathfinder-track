@@ -488,6 +488,10 @@ button { cursor: pointer; }
 .excellence-row:first-child .scoreboard-rank { background:var(--amber-soft); color:#7b5d22; }
 .excellence-person strong { display:block; font-size:13px; }
 .excellence-person small { display:block; color:var(--muted); margin-top:3px; font-size:10px; }
+.excellence-row.qualifying { background:#fafbfa; }
+.excellence-status { display:inline-flex; width:max-content; margin-top:6px; padding:4px 7px; border-radius:999px; font-size:9px; font-weight:850; }
+.excellence-status.eligible { background:var(--forest-100); color:var(--forest-800); }
+.excellence-status.qualifying { background:var(--amber-soft); color:#7b5d22; }
 .excellence-metric { min-width:0; }
 .excellence-metric span { display:block; color:var(--muted); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.035em; }
 .excellence-metric strong { display:block; margin-top:3px; color:var(--forest-900); font-size:13px; }
@@ -1036,12 +1040,12 @@ const UI_TRANSLATIONS_AUDIT = {
     "Average score":"Nota média",
     "100% attendance":"100% de presença",
     "Pathfinder Excellence ranking":"Ranking Desbravador Excelência",
-    "Special unit-event points are excluded. The score is normalized so units with different numbers of meetings can be compared.":"Pontos especiais de eventos da unidade são excluídos. A nota é normalizada para comparar unidades com quantidades diferentes de reuniões.",
+    "Only eligible Pathfinders are ranked. Special unit-event points are excluded, and attendance is measured against every regular meeting opportunity since the Pathfinder joined.":"Pontos especiais de eventos da unidade são excluídos. A nota é normalizada para comparar unidades com quantidades diferentes de reuniões.",
     "Excellence formula:":"Fórmula de Excelência:",
     "Meeting score efficiency":"Eficiência da pontuação",
     "Attendance":"Presença",
     "Core class progress":"Progresso da classe regular",
-    "Raw accumulated points and the number of meetings are displayed for audit, but the ranking uses percentages so different unit schedules do not create an automatic advantage.":"Os pontos acumulados e a quantidade de reuniões são exibidos para conferência, mas o ranking usa percentuais para que calendários diferentes entre unidades não criem vantagem automática.",
+    "Eligibility requires at least 3 regular meeting opportunities and at least 60% attendance. Meeting opportunities begin on the Pathfinder's registration date. After eligibility, the ranking uses the weighted percentages above.":"Os pontos acumulados e a quantidade de reuniões são exibidos para conferência, mas o ranking usa percentuais para que calendários diferentes entre unidades não criem vantagem automática.",
     "No individual results yet":"Ainda não há resultados individuais",
     "The ranking starts when regular meeting attendance and scoring are saved.":"O ranking começa quando presença e pontuação de reuniões regulares são salvas.",
     "Loading individual results…":"Carregando resultados individuais…",
@@ -1763,7 +1767,7 @@ async function loadAuthenticatedState(token) {
   const [clubs, units, members, categories, meetings, clubYears, classLevels, requirements, requirementStatuses, staffProfiles, staffClassLinks] = await Promise.all([
     sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, token),
     profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name,active,created_at`, token) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,active,created_at&order=name`, token),
-    sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,class_levels(name)&order=full_name`, token),
+    sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,created_at,class_levels(name)&order=full_name`, token),
     sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,name,default_points,is_bonus,sort_order&order=sort_order`, token),
     sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id,club_year_id,meeting_type,unit_bonus_points&order=meeting_date.desc&limit=100`, token),
     sb(`club_years?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,label,start_date,end_date&order=start_date.desc&limit=1`, token),
@@ -2174,7 +2178,7 @@ function openMemberEditor(id=null) {
 function closeMemberEditor(){ const modal=document.getElementById('memberModal'); if(modal) modal.hidden=true; }
 
 async function refreshMembersFromDb() {
-  state.allMembers = await sb(`members?club_id=eq.${encodeURIComponent(state.user.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,class_levels(name)&order=full_name`, state.token);
+  state.allMembers = await sb(`members?club_id=eq.${encodeURIComponent(state.user.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,created_at,class_levels(name)&order=full_name`, state.token);
   await loadSelectedUnit(state.meeting?.rawDate || localISODate());
 }
 
@@ -2339,81 +2343,93 @@ function scoreboardTabs(){
 }
 
 function excellenceSnapshot(){
-  const regularMeetingIds=new Set((state.scoreboardMeetings||[])
-    .filter(m=>(m.meeting_type||'regular')==='regular')
-    .map(m=>String(m.id)));
+  const yearStart=state.clubYear?.start_date || '0000-01-01';
+  const regularMeetings=(state.scoreboardMeetings||[]).filter(m=>(m.meeting_type||'regular')==='regular');
+  const regularIds=new Set(regularMeetings.map(m=>String(m.id)));
 
-  const scoreByMember=new Map();
+  const possibleByPair=new Map();
+  const earnedByPair=new Map();
   for(const row of state.scoreboardScores||[]){
-    if(!regularMeetingIds.has(String(row.meeting_id))) continue;
-    const key=String(row.member_id);
-    if(!scoreByMember.has(key)) scoreByMember.set(key,{earned:0,possible:0,meetings:new Set()});
-    const item=scoreByMember.get(key);
-    item.earned+=Number(row.points_awarded||0);
-    item.possible+=Number(row.max_points_snapshot||0);
-    item.meetings.add(String(row.meeting_id));
+    const meetingId=String(row.meeting_id);
+    if(!regularIds.has(meetingId)) continue;
+    const pair=meetingId+'::'+String(row.member_id);
+    possibleByPair.set(pair,(possibleByPair.get(pair)||0)+Number(row.max_points_snapshot||0));
+    earnedByPair.set(pair,(earnedByPair.get(pair)||0)+Number(row.points_awarded||0));
   }
 
-  const attendanceByMember=new Map();
+  const meetingPossible=new Map();
+  for(const [pair,value] of possibleByPair){
+    const meetingId=pair.split('::')[0];
+    meetingPossible.set(meetingId,Math.max(meetingPossible.get(meetingId)||0,value));
+  }
+
+  const presentPairs=new Set();
   for(const row of state.scoreboardAttendance||[]){
-    if(!regularMeetingIds.has(String(row.meeting_id))) continue;
-    const key=String(row.member_id);
-    if(!attendanceByMember.has(key)) attendanceByMember.set(key,{present:0,total:0,meetings:new Set()});
-    const item=attendanceByMember.get(key);
-    item.total+=1;
-    if(row.present===true) item.present+=1;
-    item.meetings.add(String(row.meeting_id));
+    if(row.present===true && regularIds.has(String(row.meeting_id))){
+      presentPairs.add(String(row.meeting_id)+'::'+String(row.member_id));
+    }
   }
 
   const rows=(state.allMembers||[]).filter(m=>m.active!==false).map(member=>{
-    const score=scoreByMember.get(String(member.id))||{earned:0,possible:0,meetings:new Set()};
-    const attendance=attendanceByMember.get(String(member.id))||{present:0,total:0,meetings:new Set()};
-    const scoreEfficiency=score.possible?Math.round(score.earned/score.possible*1000)/10:0;
-    const attendancePct=attendance.total?Math.round(attendance.present/attendance.total*1000)/10:0;
+    const joinedDate=member.created_at?String(member.created_at).slice(0,10):yearStart;
+    const eligibilityStart=joinedDate>yearStart?joinedDate:yearStart;
+    const opportunities=regularMeetings.filter(m=>
+      String(m.unit_id)===String(member.unit_id) &&
+      String(m.meeting_date)>=eligibilityStart
+    );
+
+    let earned=0, possible=0, present=0;
+    for(const meeting of opportunities){
+      const meetingId=String(meeting.id);
+      const pair=meetingId+'::'+String(member.id);
+      earned+=Number(earnedByPair.get(pair)||0);
+      possible+=Number(meetingPossible.get(meetingId)||0);
+      if(presentPairs.has(pair)) present+=1;
+    }
+
+    const meetingCount=opportunities.length;
+    const scoreEfficiency=possible?Math.round(earned/possible*1000)/10:0;
+    const attendancePct=meetingCount?Math.round(present/meetingCount*1000)/10:0;
     const classProgress=memberClassProgress(member);
     const classPct=classProgress.pct||0;
     const excellence=Math.round((scoreEfficiency*.50 + attendancePct*.30 + classPct*.20)*10)/10;
-    const meetingCount=new Set([...score.meetings,...attendance.meetings]).size;
-    const hasData=score.possible>0 || attendance.total>0;
+
+    const eligible=meetingCount>=3 && attendancePct>=60 && possible>0;
+    let eligibilityReason='Eligible';
+    if(meetingCount<3){
+      const n=3-meetingCount;
+      eligibilityReason=n===1?'Needs 1 more meeting':`Needs ${n} more meetings`;
+    }else if(attendancePct<60) eligibilityReason='Attendance below 60%';
+    else if(possible<=0) eligibilityReason='No saved scoring';
+
     return {
-      id:member.id,
-      name:member.full_name,
-      unit:unitName(member.unit_id),
+      id:member.id,name:member.full_name,unit:unitName(member.unit_id),
       className:member.current_class_level_id?className(member.current_class_level_id):(member.class_levels?.name||'No class'),
-      earned:score.earned,
-      possible:score.possible,
-      scoreEfficiency,
-      present:attendance.present,
-      attendanceTotal:attendance.total,
-      attendancePct,
-      classPct,
-      classCompleted:classProgress.completed,
-      classTotal:classProgress.total,
-      meetingCount,
-      excellence,
-      hasData,
+      earned,possible,scoreEfficiency,present,attendanceTotal:meetingCount,attendancePct,
+      classPct,classCompleted:classProgress.completed,classTotal:classProgress.total,
+      meetingCount,excellence,eligible,eligibilityReason
     };
   });
 
   rows.sort((a,b)=>
-    Number(b.hasData)-Number(a.hasData)
-    || b.excellence-a.excellence
-    || b.scoreEfficiency-a.scoreEfficiency
+    Number(b.eligible)-Number(a.eligible)
+    || (a.eligible&&b.eligible?b.excellence-a.excellence:b.meetingCount-a.meetingCount)
     || b.attendancePct-a.attendancePct
+    || b.scoreEfficiency-a.scoreEfficiency
     || b.classPct-a.classPct
     || a.name.localeCompare(b.name)
   );
 
   let rank=0;
-  return rows.map(item=>({...item,rank:item.hasData?++rank:null}));
+  return rows.map(item=>({...item,rank:item.eligible?++rank:null}));
 }
-
 function excellenceScoreboardView(){
   if(state.mode!=='live' || state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">The club-wide scoreboard is available to the club director.</div>`;
   if(!state.scoreboardLoaded) return `${mobileTop()}<div class="scoreboard-page"><div class="topbar"><div><div class="eyebrow">Pathfinder Excellence</div><h1>Pathfinder Excellence</h1><p>Loading individual results…</p></div></div><div class="member-empty">Loading scoreboard…</div></div>`;
 
   const rows=excellenceSnapshot();
-  const ranked=rows.filter(x=>x.hasData);
+  const ranked=rows.filter(x=>x.eligible);
+  const qualifying=rows.filter(x=>!x.eligible);
   const leader=ranked[0]||null;
   const yearLabel=state.clubYear?.label || 'Current club year';
   const avg=ranked.length?Math.round(ranked.reduce((sum,x)=>sum+x.excellence,0)/ranked.length*10)/10:0;
@@ -2421,16 +2437,16 @@ function excellenceScoreboardView(){
   const withClassProgress=ranked.filter(x=>x.classTotal>0 && x.classPct>0).length;
 
   const leaderBlock=leader
-    ? `<div class="excellence-leader"><div><div class="eyebrow">Current excellence leader · ${esc(yearLabel)}</div><h2>${esc(leader.name)}</h2><p>${esc(leader.unit)} · ${leader.meetingCount} scored meeting${leader.meetingCount===1?'':'s'}</p></div><div class="excellence-score"><strong>${leader.excellence}</strong><span>Excellence score</span></div></div>`
+    ? `<div class="excellence-leader"><div><div class="eyebrow">Current excellence leader · ${esc(yearLabel)}</div><h2>${esc(leader.name)}</h2><p>${esc(leader.unit)} · ${leader.meetingCount} meeting opportunit${leader.meetingCount===1?'y':'ies'}</p></div><div class="excellence-score"><strong>${leader.excellence}</strong><span>Excellence score</span></div></div>`
     : `<div class="excellence-leader"><div><div class="eyebrow">${esc(yearLabel)}</div><h2>No individual results yet</h2><p>The ranking starts when regular meeting attendance and scoring are saved.</p></div><div class="excellence-score"><strong>0</strong><span>Excellence score</span></div></div>`;
 
-  const list=rows.map(x=>`<div class="excellence-row">
+  const list=rows.map(x=>`<div class="excellence-row ${x.eligible?'':'qualifying'}">
     <div class="scoreboard-rank">${x.rank||'—'}</div>
-    <div class="excellence-person"><strong>${esc(x.name)}</strong><small>${esc(x.unit)} · ${esc(x.className)} · ${x.meetingCount} meeting${x.meetingCount===1?'':'s'}</small></div>
+    <div class="excellence-person"><strong>${esc(x.name)}</strong><small>${esc(x.unit)} · ${esc(x.className)} · ${x.present}/${x.meetingCount} present</small>${x.eligible?'<span class="excellence-status eligible">Eligible</span>':`<span class="excellence-status qualifying">In qualification · ${esc(x.eligibilityReason)}</span>`}</div>
     <div class="excellence-metric"><span>Meeting efficiency</span><strong>${x.scoreEfficiency}% <small style="font-weight:600;color:var(--muted)">(${x.earned}/${x.possible})</small></strong></div>
     <div class="excellence-metric"><span>Attendance</span><strong>${x.attendancePct}% <small style="font-weight:600;color:var(--muted)">(${x.present}/${x.attendanceTotal})</small></strong></div>
     <div class="excellence-metric excellence-class"><span>Class progress</span><strong>${x.classPct}% <small style="font-weight:600;color:var(--muted)">(${x.classCompleted}/${x.classTotal})</small></strong></div>
-    <div class="excellence-final"><strong>${x.hasData?x.excellence:'—'}</strong><small>Excellence score</small></div>
+    <div class="excellence-final"><strong>${x.eligible?x.excellence:'—'}</strong><small>${x.eligible?'Excellence score':'Not ranked'}</small></div>
   </div>`).join('');
 
   return `${mobileTop()}<div class="scoreboard-page">
@@ -2440,7 +2456,7 @@ function excellenceScoreboardView(){
       ${leaderBlock}
       <div class="scoreboard-kpi"><span>Ranked Pathfinders</span><strong>${ranked.length}</strong></div>
       <div class="scoreboard-kpi"><span>Average score</span><strong>${avg}</strong></div>
-      <div class="scoreboard-kpi"><span>100% attendance</span><strong>${perfectAttendance}</strong></div>
+      <div class="scoreboard-kpi"><span>In qualification</span><strong>${qualifying.length}</strong></div>
     </section>
     <section class="scoreboard-card">
       <div class="scoreboard-card-head"><h3>Pathfinder Excellence ranking</h3><p>Special unit-event points are excluded. The score is normalized so units with different numbers of meetings can be compared.</p></div>
