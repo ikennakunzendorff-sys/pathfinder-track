@@ -470,6 +470,36 @@ button { cursor: pointer; }
 @media (max-width:600px){ .unit-grid { grid-template-columns:1fr; } .unit-metrics { grid-template-columns:repeat(3,1fr); } }
 
 .scoreboard-page { max-width:1120px; }
+.scoreboard-tabs { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:-10px 0 16px; }
+.scoreboard-tab { border:1px solid var(--line); background:white; color:var(--muted); border-radius:999px; padding:9px 13px; font-size:12px; font-weight:850; cursor:pointer; }
+.scoreboard-tab.active { background:var(--forest-900); border-color:var(--forest-900); color:white; }
+.scoreboard-tabs .scoreboard-refresh { margin-left:auto; }
+.excellence-hero { display:grid; grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(120px,.5fr)); gap:12px; margin-bottom:16px; }
+.excellence-leader { border-radius:24px; padding:22px; background:linear-gradient(135deg,var(--forest-900),var(--forest-700)); color:white; min-height:154px; }
+.excellence-leader .eyebrow { color:#dfeae5; }
+.excellence-leader h2 { margin:7px 0 4px; font-size:28px; letter-spacing:-.035em; }
+.excellence-leader p { margin:0; color:#dce8e3; font-size:12px; }
+.excellence-score { margin-top:18px; display:flex; align-items:baseline; gap:9px; }
+.excellence-score strong { font-size:38px; line-height:1; }
+.excellence-score span { font-size:12px; color:#dce8e3; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
+.excellence-list { display:grid; }
+.excellence-row { display:grid; grid-template-columns:48px minmax(180px,1.15fr) repeat(3,minmax(105px,.55fr)) 118px; gap:11px; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
+.excellence-row:last-child { border-bottom:0; }
+.excellence-row:first-child .scoreboard-rank { background:var(--amber-soft); color:#7b5d22; }
+.excellence-person strong { display:block; font-size:13px; }
+.excellence-person small { display:block; color:var(--muted); margin-top:3px; font-size:10px; }
+.excellence-metric { min-width:0; }
+.excellence-metric span { display:block; color:var(--muted); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.035em; }
+.excellence-metric strong { display:block; margin-top:3px; color:var(--forest-900); font-size:13px; }
+.excellence-final { text-align:right; }
+.excellence-final strong { display:block; font-size:22px; color:var(--forest-900); }
+.excellence-final small { color:var(--muted); font-size:9px; }
+.excellence-formula { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+.excellence-formula div { border:1px solid #ead5aa; border-radius:12px; padding:10px; background:#fffaf0; }
+.excellence-formula strong { display:block; color:#75581e; font-size:14px; }
+.excellence-formula span { display:block; color:#8a704b; margin-top:3px; font-size:10px; }
+@media (max-width:960px){ .excellence-hero { grid-template-columns:1fr 1fr; } .excellence-leader { grid-column:1/-1; } .excellence-row { grid-template-columns:40px minmax(150px,1fr) repeat(2,minmax(90px,.55fr)) 100px; } .excellence-row .excellence-class { display:none; } }
+@media (max-width:650px){ .scoreboard-tabs { margin-top:-4px; } .scoreboard-tabs .scoreboard-refresh { width:100%; margin-left:0; } .excellence-hero { grid-template-columns:1fr 1fr; } .excellence-row { grid-template-columns:36px minmax(0,1fr) 78px; gap:9px; } .excellence-row .excellence-metric { grid-column:2/4; display:grid; grid-template-columns:1fr auto; align-items:center; } .excellence-row .excellence-final { grid-column:3; grid-row:1; } .excellence-row .excellence-class { display:grid; } .excellence-formula { grid-template-columns:1fr; } }
 .scoreboard-hero { display:grid; grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(120px,.55fr)); gap:12px; align-items:stretch; margin-bottom:16px; }
 .scoreboard-leader { border-radius:24px; padding:22px; background:linear-gradient(135deg,var(--forest-900),var(--forest-700)); color:white; min-height:154px; display:flex; flex-direction:column; justify-content:space-between; }
 .scoreboard-leader .eyebrow { color:#dfeae5; }
@@ -997,6 +1027,27 @@ const UI_TRANSLATIONS_AUDIT = {
     "Current meeting":"Reunião atual",
     "Current club year":"Ano atual do clube",
     "No automatic class mapping":"Sem sugestão automática de classe",
+    "Pathfinder Excellence":"Desbravador Excelência",
+    "Individual recognition":"Reconhecimento individual",
+    "Individual ranking for the Pathfinder Excellence award.":"Ranking individual para a premiação Desbravador Excelência.",
+    "Current excellence leader ·":"Líder atual de excelência ·",
+    "Excellence score":"Nota de Excelência",
+    "Ranked Pathfinders":"Desbravadores ranqueados",
+    "Average score":"Nota média",
+    "100% attendance":"100% de presença",
+    "Pathfinder Excellence ranking":"Ranking Desbravador Excelência",
+    "Special unit-event points are excluded. The score is normalized so units with different numbers of meetings can be compared.":"Pontos especiais de eventos da unidade são excluídos. A nota é normalizada para comparar unidades com quantidades diferentes de reuniões.",
+    "Excellence formula:":"Fórmula de Excelência:",
+    "Meeting score efficiency":"Eficiência da pontuação",
+    "Attendance":"Presença",
+    "Core class progress":"Progresso da classe regular",
+    "Raw accumulated points and the number of meetings are displayed for audit, but the ranking uses percentages so different unit schedules do not create an automatic advantage.":"Os pontos acumulados e a quantidade de reuniões são exibidos para conferência, mas o ranking usa percentuais para que calendários diferentes entre unidades não criem vantagem automática.",
+    "No individual results yet":"Ainda não há resultados individuais",
+    "The ranking starts when regular meeting attendance and scoring are saved.":"O ranking começa quando presença e pontuação de reuniões regulares são salvas.",
+    "Loading individual results…":"Carregando resultados individuais…",
+    "No active Pathfinders are available for this ranking yet.":"Ainda não há Desbravadores ativos disponíveis para este ranking.",
+    "meeting":"reunião",
+    "meetings":"reuniões",
     "Meeting / Event":"Reunião / Evento",
     "Create meeting or special event":"Criar reunião ou evento especial",
     "New meeting / event":"Nova reunião / evento",
@@ -1130,6 +1181,27 @@ const UI_TRANSLATIONS_AUDIT = {
     "Current meeting":"Reunión actual",
     "Current club year":"Año actual del club",
     "No automatic class mapping":"Sin sugerencia automática de clase",
+    "Pathfinder Excellence":"Conquistador Excelencia",
+    "Individual recognition":"Reconocimiento individual",
+    "Individual ranking for the Pathfinder Excellence award.":"Clasificación individual para el premio Conquistador Excelencia.",
+    "Current excellence leader ·":"Líder actual de excelencia ·",
+    "Excellence score":"Puntuación de Excelencia",
+    "Ranked Pathfinders":"Conquistadores clasificados",
+    "Average score":"Puntuación media",
+    "100% attendance":"100% de asistencia",
+    "Pathfinder Excellence ranking":"Clasificación Conquistador Excelencia",
+    "Special unit-event points are excluded. The score is normalized so units with different numbers of meetings can be compared.":"Los puntos especiales de eventos de unidad quedan excluidos. La puntuación se normaliza para comparar unidades con diferentes cantidades de reuniones.",
+    "Excellence formula:":"Fórmula de Excelencia:",
+    "Meeting score efficiency":"Eficiencia de puntuación",
+    "Attendance":"Asistencia",
+    "Core class progress":"Progreso de la clase regular",
+    "Raw accumulated points and the number of meetings are displayed for audit, but the ranking uses percentages so different unit schedules do not create an automatic advantage.":"Los puntos acumulados y la cantidad de reuniones se muestran para auditoría, pero la clasificación usa porcentajes para que calendarios distintos no generen una ventaja automática.",
+    "No individual results yet":"Aún no hay resultados individuales",
+    "The ranking starts when regular meeting attendance and scoring are saved.":"La clasificación comienza cuando se guardan la asistencia y puntuación de reuniones regulares.",
+    "Loading individual results…":"Cargando resultados individuales…",
+    "No active Pathfinders are available for this ranking yet.":"Aún no hay Conquistadores activos disponibles para esta clasificación.",
+    "meeting":"reunión",
+    "meetings":"reuniones",
     "Meeting / Event":"Reunión / Evento",
     "Create meeting or special event":"Crear reunión o evento especial",
     "New meeting / event":"Nueva reunión / evento",
@@ -1474,6 +1546,7 @@ let state = null;
 let route = 'dashboard';
 let selectedClassId = null;
 let selectedClassMemberId = null;
+let scoreboardMode = 'units';
 
 function iconPath() {
   return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 18.2C8.8 16.8 8.3 11.6 12 10.3c3.8-1.3 4.7 3 7 1.9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="18" r="2" fill="currentColor"/><path d="M12.2 4.2c2.2 0 4 1.8 4 4 0 3-4 6.2-4 6.2s-4-3.2-4-6.2c0-2.2 1.8-4 4-4Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12.2" cy="8.2" r="1.2" fill="currentColor"/></svg>`;
@@ -2229,7 +2302,7 @@ function scoreboardSnapshot(){
   return {ranked,meetingRows};
 }
 
-function scoreboardView(){
+function unitScoreboardView(){
   if(state.mode!=='live' || state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">The club-wide scoreboard is available to the club director.</div>`;
   if(!state.scoreboardLoaded) return `${mobileTop()}<div class="scoreboard-page"><div class="topbar"><div><div class="eyebrow">Unit competition</div><h1>Unit Scoreboard</h1><p>Loading saved meeting scores…</p></div></div><div class="member-empty">Loading scoreboard…</div></div>`;
   const {ranked,meetingRows}=scoreboardSnapshot();
@@ -2248,13 +2321,146 @@ function scoreboardView(){
   }).join('');
   const recent=meetingRows.slice(0,10).map(m=>`<div class="scoreboard-meeting-row"><div><strong>${esc(m.title||m.unit_name)}</strong><small>${esc(m.unit_name)} · ${esc(formatMeetingDate(m.date))}${m.meeting_type==='special'?' · Special event':` · ${m.present}/${m.attendanceRecords || 0} present`}</small></div><div class="scoreboard-meeting-score"><strong>${m.earned} pts</strong><small>${m.specialPoints?`+${m.specialPoints} special`:(m.possible?`${m.efficiency}% of ${m.possible}`:'Saved')}</small></div></div>`).join('');
   return `${mobileTop()}<div class="scoreboard-page">
-    <div class="topbar"><div><div class="eyebrow">Unit competition</div><h1>Unit Scoreboard</h1><p>${esc(yearLabel)} · Ranking by accumulated saved meeting points.</p></div><div class="top-actions"><button class="btn btn-ghost" id="refreshScoreboardBtn" style="width:auto">↻ Refresh scores</button></div></div>
+    <div class="topbar"><div><div class="eyebrow">Unit competition</div><h1>Unit Scoreboard</h1><p>${esc(yearLabel)} · Ranking by accumulated saved meeting points.</p></div></div>
+    ${scoreboardTabs()}
     <section class="scoreboard-hero">${leaderBlock}<div class="scoreboard-kpi"><span>Club points</span><strong>${totalPoints}</strong></div><div class="scoreboard-kpi"><span>Scored meetings</span><strong>${scoredMeetings}</strong></div><div class="scoreboard-kpi"><span>Club efficiency</span><strong>${clubEfficiency}%</strong></div></section>
     <section class="scoreboard-grid"><div class="scoreboard-card"><div class="scoreboard-card-head"><h3>Leaderboard</h3><p>Total points determine rank. Efficiency is shown alongside so units of different sizes can still be compared fairly.</p></div><div class="scoreboard-list">${list || '<div class="scoreboard-empty">No units are available for the scoreboard yet.</div>'}</div></div>
     <div class="scoreboard-card"><div class="scoreboard-card-head"><h3>Recent scoring</h3><p>Only meetings with saved score rows count toward accumulated points.</p></div><div class="scoreboard-meetings">${recent || '<div class="scoreboard-empty">No scored meetings yet.</div>'}</div></div></section>
     <div class="scoreboard-note"><strong>How ranking works:</strong> accumulated points are the sum of saved meeting scores for the active club year. Historical maximum values come from each meeting's snapshot, so later scoring-rule changes do not rewrite earlier results.</div>
   </div>`;
 }
+
+function scoreboardTabs(){
+  return `<div class="scoreboard-tabs">
+    <button class="scoreboard-tab ${scoreboardMode==='units'?'active':''}" data-scoreboard-mode="units">◇ Units</button>
+    <button class="scoreboard-tab ${scoreboardMode==='excellence'?'active':''}" data-scoreboard-mode="excellence">★ Pathfinder Excellence</button>
+    <button class="btn btn-ghost scoreboard-refresh" id="refreshScoreboardBtn" style="width:auto">↻ Refresh scores</button>
+  </div>`;
+}
+
+function excellenceSnapshot(){
+  const regularMeetingIds=new Set((state.scoreboardMeetings||[])
+    .filter(m=>(m.meeting_type||'regular')==='regular')
+    .map(m=>String(m.id)));
+
+  const scoreByMember=new Map();
+  for(const row of state.scoreboardScores||[]){
+    if(!regularMeetingIds.has(String(row.meeting_id))) continue;
+    const key=String(row.member_id);
+    if(!scoreByMember.has(key)) scoreByMember.set(key,{earned:0,possible:0,meetings:new Set()});
+    const item=scoreByMember.get(key);
+    item.earned+=Number(row.points_awarded||0);
+    item.possible+=Number(row.max_points_snapshot||0);
+    item.meetings.add(String(row.meeting_id));
+  }
+
+  const attendanceByMember=new Map();
+  for(const row of state.scoreboardAttendance||[]){
+    if(!regularMeetingIds.has(String(row.meeting_id))) continue;
+    const key=String(row.member_id);
+    if(!attendanceByMember.has(key)) attendanceByMember.set(key,{present:0,total:0,meetings:new Set()});
+    const item=attendanceByMember.get(key);
+    item.total+=1;
+    if(row.present===true) item.present+=1;
+    item.meetings.add(String(row.meeting_id));
+  }
+
+  const rows=(state.allMembers||[]).filter(m=>m.active!==false).map(member=>{
+    const score=scoreByMember.get(String(member.id))||{earned:0,possible:0,meetings:new Set()};
+    const attendance=attendanceByMember.get(String(member.id))||{present:0,total:0,meetings:new Set()};
+    const scoreEfficiency=score.possible?Math.round(score.earned/score.possible*1000)/10:0;
+    const attendancePct=attendance.total?Math.round(attendance.present/attendance.total*1000)/10:0;
+    const classProgress=memberClassProgress(member);
+    const classPct=classProgress.pct||0;
+    const excellence=Math.round((scoreEfficiency*.50 + attendancePct*.30 + classPct*.20)*10)/10;
+    const meetingCount=new Set([...score.meetings,...attendance.meetings]).size;
+    const hasData=score.possible>0 || attendance.total>0;
+    return {
+      id:member.id,
+      name:member.full_name,
+      unit:unitName(member.unit_id),
+      className:member.current_class_level_id?className(member.current_class_level_id):(member.class_levels?.name||'No class'),
+      earned:score.earned,
+      possible:score.possible,
+      scoreEfficiency,
+      present:attendance.present,
+      attendanceTotal:attendance.total,
+      attendancePct,
+      classPct,
+      classCompleted:classProgress.completed,
+      classTotal:classProgress.total,
+      meetingCount,
+      excellence,
+      hasData,
+    };
+  });
+
+  rows.sort((a,b)=>
+    Number(b.hasData)-Number(a.hasData)
+    || b.excellence-a.excellence
+    || b.scoreEfficiency-a.scoreEfficiency
+    || b.attendancePct-a.attendancePct
+    || b.classPct-a.classPct
+    || a.name.localeCompare(b.name)
+  );
+
+  let rank=0;
+  return rows.map(item=>({...item,rank:item.hasData?++rank:null}));
+}
+
+function excellenceScoreboardView(){
+  if(state.mode!=='live' || state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">The club-wide scoreboard is available to the club director.</div>`;
+  if(!state.scoreboardLoaded) return `${mobileTop()}<div class="scoreboard-page"><div class="topbar"><div><div class="eyebrow">Pathfinder Excellence</div><h1>Pathfinder Excellence</h1><p>Loading individual results…</p></div></div><div class="member-empty">Loading scoreboard…</div></div>`;
+
+  const rows=excellenceSnapshot();
+  const ranked=rows.filter(x=>x.hasData);
+  const leader=ranked[0]||null;
+  const yearLabel=state.clubYear?.label || 'Current club year';
+  const avg=ranked.length?Math.round(ranked.reduce((sum,x)=>sum+x.excellence,0)/ranked.length*10)/10:0;
+  const perfectAttendance=ranked.filter(x=>x.attendanceTotal>0 && x.attendancePct===100).length;
+  const withClassProgress=ranked.filter(x=>x.classTotal>0 && x.classPct>0).length;
+
+  const leaderBlock=leader
+    ? `<div class="excellence-leader"><div><div class="eyebrow">Current excellence leader · ${esc(yearLabel)}</div><h2>${esc(leader.name)}</h2><p>${esc(leader.unit)} · ${leader.meetingCount} scored meeting${leader.meetingCount===1?'':'s'}</p></div><div class="excellence-score"><strong>${leader.excellence}</strong><span>Excellence score</span></div></div>`
+    : `<div class="excellence-leader"><div><div class="eyebrow">${esc(yearLabel)}</div><h2>No individual results yet</h2><p>The ranking starts when regular meeting attendance and scoring are saved.</p></div><div class="excellence-score"><strong>0</strong><span>Excellence score</span></div></div>`;
+
+  const list=rows.map(x=>`<div class="excellence-row">
+    <div class="scoreboard-rank">${x.rank||'—'}</div>
+    <div class="excellence-person"><strong>${esc(x.name)}</strong><small>${esc(x.unit)} · ${esc(x.className)} · ${x.meetingCount} meeting${x.meetingCount===1?'':'s'}</small></div>
+    <div class="excellence-metric"><span>Meeting efficiency</span><strong>${x.scoreEfficiency}% <small style="font-weight:600;color:var(--muted)">(${x.earned}/${x.possible})</small></strong></div>
+    <div class="excellence-metric"><span>Attendance</span><strong>${x.attendancePct}% <small style="font-weight:600;color:var(--muted)">(${x.present}/${x.attendanceTotal})</small></strong></div>
+    <div class="excellence-metric excellence-class"><span>Class progress</span><strong>${x.classPct}% <small style="font-weight:600;color:var(--muted)">(${x.classCompleted}/${x.classTotal})</small></strong></div>
+    <div class="excellence-final"><strong>${x.hasData?x.excellence:'—'}</strong><small>Excellence score</small></div>
+  </div>`).join('');
+
+  return `${mobileTop()}<div class="scoreboard-page">
+    <div class="topbar"><div><div class="eyebrow">Individual recognition</div><h1>Pathfinder Excellence</h1><p>${esc(yearLabel)} · Individual ranking for the Pathfinder Excellence award.</p></div></div>
+    ${scoreboardTabs()}
+    <section class="excellence-hero">
+      ${leaderBlock}
+      <div class="scoreboard-kpi"><span>Ranked Pathfinders</span><strong>${ranked.length}</strong></div>
+      <div class="scoreboard-kpi"><span>Average score</span><strong>${avg}</strong></div>
+      <div class="scoreboard-kpi"><span>100% attendance</span><strong>${perfectAttendance}</strong></div>
+    </section>
+    <section class="scoreboard-card">
+      <div class="scoreboard-card-head"><h3>Pathfinder Excellence ranking</h3><p>Special unit-event points are excluded. The score is normalized so units with different numbers of meetings can be compared.</p></div>
+      <div class="excellence-list">${list || '<div class="scoreboard-empty">No active Pathfinders are available for this ranking yet.</div>'}</div>
+    </section>
+    <div class="scoreboard-note"><strong>Excellence formula:</strong>
+      <div class="excellence-formula">
+        <div><strong>50%</strong><span>Meeting score efficiency</span></div>
+        <div><strong>30%</strong><span>Attendance</span></div>
+        <div><strong>20%</strong><span>Core class progress</span></div>
+      </div>
+      <div style="margin-top:10px">Raw accumulated points and the number of meetings are displayed for audit, but the ranking uses percentages so different unit schedules do not create an automatic advantage.</div>
+    </div>
+  </div>`;
+}
+
+function scoreboardView(){
+  return scoreboardMode==='excellence' ? excellenceScoreboardView() : unitScoreboardView();
+}
+
 
 function unitMembers(unitId,activeOnly=true){
   return (state.allMembers||[]).filter(m=>String(m.unit_id)===String(unitId) && (!activeOnly || m.active!==false));
@@ -2955,6 +3161,7 @@ function renderApp() {
   const staffActive=document.getElementById('staffActiveBtn'); if(staffActive) staffActive.onclick=toggleStaffActive;
   const staffResend=document.getElementById('staffResendBtn'); if(staffResend) staffResend.onclick=resendStaffActivation;
   const staffModal=document.getElementById('staffModal'); if(staffModal) staffModal.onclick=e=>{ if(e.target===staffModal) closeStaffEditor(); };
+  document.querySelectorAll('[data-scoreboard-mode]').forEach(btn=>btn.onclick=()=>{ scoreboardMode=btn.dataset.scoreboardMode||'units'; renderApp(); });
   const refreshScoreboard=document.getElementById('refreshScoreboardBtn'); if(refreshScoreboard) refreshScoreboard.onclick=async()=>{ refreshScoreboard.disabled=true; refreshScoreboard.textContent='Refreshing…'; try{ await loadScoreboardData(true); renderApp(); }catch(err){ console.error(err); alert(translateUiString(err.message||'Scoreboard could not be refreshed.')); refreshScoreboard.disabled=false; refreshScoreboard.textContent='↻ Refresh scores'; } };
   if(route==='members') filterMemberDirectory();
 }
