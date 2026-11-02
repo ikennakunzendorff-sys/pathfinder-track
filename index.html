@@ -1824,6 +1824,16 @@ function formatShortDate(value){
   return d.toLocaleDateString(uiLocale(),{month:'short',day:'numeric',year:'numeric'});
 }
 function maxScore(){ return scoreCategories.reduce((a,c)=>a+c.points,0); }
+function excellenceConfig(){
+  const s=state?.clubSettings||{};
+  return {
+    scoreWeight:Number(s.excellence_score_weight??50),
+    attendanceWeight:Number(s.excellence_attendance_weight??30),
+    classWeight:Number(s.excellence_class_weight??20),
+    minMeetings:Number(s.excellence_min_meetings??3),
+    minAttendance:Number(s.excellence_min_attendance??60)
+  };
+}
 function memberPoints(m){ if(!m.present) return 0; return scoreCategories.reduce((sum,c)=>sum+(m.scores?.[c.key] ? c.points : 0),0); }
 function activeUnitId(){ return state?.selectedUnitId || state?.user?.unit_id || null; }
 function activeUnits(){ return (state?.units||[]).filter(u=>u.active!==false); }
@@ -1977,13 +1987,14 @@ async function loadAuthenticatedState(token) {
   if(!profile.club_id) throw new Error('Your account is not assigned to a club yet.');
 
   const today = localISODate();
-  const [clubs, units, members, categories, meetings, clubYears, classLevels, requirements, requirementStatuses, staffProfiles, staffClassLinks] = await Promise.all([
+  const [clubs, units, members, categories, meetings, clubYears, clubSettingsRows, classLevels, requirements, requirementStatuses, staffProfiles, staffClassLinks] = await Promise.all([
     sb(`clubs?id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,location`, activeToken),
     profile.unit_id ? sb(`units?id=eq.${encodeURIComponent(profile.unit_id)}&select=id,name,active,created_at`, activeToken) : sb(`units?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,active,created_at&order=name`, activeToken),
     sb(`members?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,full_name,school_grade,current_class_level_id,unit_id,active,created_at,class_levels(name)&order=full_name`, activeToken),
-    sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,name,default_points,is_bonus,sort_order&order=sort_order`, activeToken),
-    sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id,club_year_id,meeting_type,unit_bonus_points&order=meeting_date.desc&limit=100`, activeToken),
-    sb(`club_years?club_id=eq.${encodeURIComponent(profile.club_id)}&active=eq.true&select=id,label,start_date,end_date&order=start_date.desc&limit=1`, activeToken),
+    sb(`score_categories?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,name,default_points,is_bonus,active,sort_order&order=sort_order`, activeToken),
+    sb(`meetings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,meeting_date,title,unit_id,club_year_id,meeting_type,unit_bonus_points&order=meeting_date.desc&limit=200`, activeToken),
+    sb(`club_years?club_id=eq.${encodeURIComponent(profile.club_id)}&select=id,label,start_date,end_date,active,created_at&order=start_date.desc`, activeToken),
+    sb(`club_settings?club_id=eq.${encodeURIComponent(profile.club_id)}&select=club_id,excellence_score_weight,excellence_attendance_weight,excellence_class_weight,excellence_min_meetings,excellence_min_attendance,updated_at&limit=1`, activeToken),
     sb(`class_levels?select=id,name,order_index&order=order_index`, activeToken),
     sb(`requirements?select=id,class_level_id,code,title,description,category,sort_index,is_advanced&order=sort_index`, activeToken),
     sb(`member_requirement_status?select=id,member_id,requirement_id,status,completed_at,signed_by,notes,updated_at`, activeToken),
@@ -1992,7 +2003,7 @@ async function loadAuthenticatedState(token) {
   ]);
 
   const liveCategories = categories
-    .filter(c=>!c.is_bonus)
+    .filter(c=>c.active!==false && !c.is_bonus)
     .map(c=>({ id:c.id, key:c.id, name:c.name, points:c.default_points, icon:categoryIcon(c.name) }));
   scoreCategories = liveCategories.length ? liveCategories : structuredClone(defaultScoreCategories);
 
@@ -2013,7 +2024,16 @@ async function loadAuthenticatedState(token) {
     allMembers:members,
     members:[],
     categories,
-    clubYear:clubYears[0] || null,
+    clubYears,
+    clubYear:clubYears.find(y=>y.active===true) || null,
+    clubSettings:clubSettingsRows[0] || {
+      club_id:profile.club_id,
+      excellence_score_weight:50,
+      excellence_attendance_weight:30,
+      excellence_class_weight:20,
+      excellence_min_meetings:3,
+      excellence_min_attendance:60
+    },
     classLevels,
     requirements,
     requirementStatuses,
@@ -2444,6 +2464,13 @@ async function loadScoreboardData(force=false){
   if(!state || state.mode!=='live' || state.user.role!=='director') return;
   if(state.scoreboardLoaded && !force) return;
   const year=state.clubYear;
+  if(!year){
+    state.scoreboardMeetings=[];
+    state.scoreboardScores=[];
+    state.scoreboardAttendance=[];
+    state.scoreboardLoaded=true;
+    return;
+  }
   let meetingQuery=`meetings?club_id=eq.${encodeURIComponent(state.user.club_id)}&select=id,meeting_date,title,unit_id,club_year_id,meeting_type,unit_bonus_points&order=meeting_date.asc`;
   if(year?.start_date) meetingQuery+=`&meeting_date=gte.${encodeURIComponent(year.start_date)}`;
   if(year?.end_date) meetingQuery+=`&meeting_date=lte.${encodeURIComponent(year.end_date)}`;
@@ -2607,14 +2634,19 @@ function excellenceSnapshot(){
     const attendancePct=meetingCount?Math.round(present/meetingCount*1000)/10:0;
     const classProgress=memberClassProgress(member);
     const classPct=classProgress.pct||0;
-    const excellence=Math.round((scoreEfficiency*.50 + attendancePct*.30 + classPct*.20)*10)/10;
+    const cfg=excellenceConfig();
+    const excellence=Math.round((
+      scoreEfficiency*(cfg.scoreWeight/100)
+      + attendancePct*(cfg.attendanceWeight/100)
+      + classPct*(cfg.classWeight/100)
+    )*10)/10;
 
-    const eligible=meetingCount>=3 && attendancePct>=60 && possible>0;
+    const eligible=meetingCount>=cfg.minMeetings && attendancePct>=cfg.minAttendance && possible>0;
     let eligibilityReason='Eligible';
-    if(meetingCount<3){
-      const n=3-meetingCount;
+    if(meetingCount<cfg.minMeetings){
+      const n=cfg.minMeetings-meetingCount;
       eligibilityReason=n===1?'Needs 1 more meeting':`Needs ${n} more meetings`;
-    }else if(attendancePct<60) eligibilityReason='Attendance below 60%';
+    }else if(attendancePct<cfg.minAttendance) eligibilityReason=`Attendance below ${cfg.minAttendance}%`;
     else if(possible<=0) eligibilityReason='No saved scoring';
 
     return {
@@ -2643,6 +2675,7 @@ function excellenceScoreboardView(){
   if(!state.scoreboardLoaded) return `${mobileTop()}<div class="scoreboard-page"><div class="topbar"><div><div class="eyebrow">Pathfinder Excellence</div><h1>Pathfinder Excellence</h1><p>Loading individual results…</p></div></div><div class="member-empty">Loading scoreboard…</div></div>`;
 
   const rows=excellenceSnapshot();
+  const cfg=excellenceConfig();
   const ranked=rows.filter(x=>x.eligible);
   const qualifying=rows.filter(x=>!x.eligible);
   const leader=ranked[0]||null;
@@ -2679,11 +2712,11 @@ function excellenceScoreboardView(){
     </section>
     <div class="scoreboard-note"><strong>Excellence formula:</strong>
       <div class="excellence-formula">
-        <div><strong>50%</strong><span>Meeting score efficiency</span></div>
-        <div><strong>30%</strong><span>Attendance</span></div>
-        <div><strong>20%</strong><span>Core class progress</span></div>
+        <div><strong>${cfg.scoreWeight}%</strong><span>Meeting score efficiency</span></div>
+        <div><strong>${cfg.attendanceWeight}%</strong><span>Attendance</span></div>
+        <div><strong>${cfg.classWeight}%</strong><span>Core class progress</span></div>
       </div>
-      <div style="margin-top:10px">Raw accumulated points and the number of meetings are displayed for audit, but the ranking uses percentages so different unit schedules do not create an automatic advantage.</div>
+      <div style="margin-top:10px">Eligibility requires at least ${cfg.minMeetings} regular meeting opportunities and at least ${cfg.minAttendance}% attendance. After eligibility, the ranking uses the weighted percentages above.</div>
     </div>
   </div>`;
 }
@@ -3282,6 +3315,8 @@ async function createMeetingOrEvent(e){
   const type=document.getElementById('newMeetingType')?.value||'regular';
   const title=(document.getElementById('newMeetingTitle')?.value||'').trim();
   if(!date || !title){ if(msg) msg.textContent='Date and title are required.'; return; }
+  if(!state.clubYear){ if(msg) msg.textContent='Activate a club year in Settings before creating meetings or events.'; return; }
+  if(date<state.clubYear.start_date || date>state.clubYear.end_date){ if(msg) msg.textContent='The date must be inside the active club year.'; return; }
   if(type==='special' && state.user.role!=='director'){ if(msg) msg.textContent='Only the Director can create special events.'; return; }
 
   btn.disabled=true;
@@ -3550,10 +3585,12 @@ async function saveMeeting(btn){
   btn.textContent = 'Saving…';
   try {
     const unitId = activeUnitId();
+    if(!state.clubYear) throw new Error('Activate a club year in Settings before recording a meeting.');
     if(!unitId) throw new Error('Choose a unit before recording a meeting.');
-    if(!state.categories?.filter(c=>!c.is_bonus).length) throw new Error('No active scoring criteria are configured for this club.');
+    if(!state.categories?.filter(c=>c.active!==false && !c.is_bonus).length) throw new Error('No active scoring criteria are configured for this club.');
 
     const meetingDate = state.meeting?.rawDate || localISODate();
+    if(meetingDate<state.clubYear.start_date || meetingDate>state.clubYear.end_date) throw new Error('The meeting date is outside the active club year.');
     let meetingId = state.meeting?.id || null;
 
     if(!meetingId) {
@@ -3588,7 +3625,7 @@ async function saveMeeting(btn){
       prefer:'resolution=merge-duplicates,return=minimal'
     });
 
-    const dbCategories = state.categories.filter(c=>!c.is_bonus);
+    const dbCategories = state.categories.filter(c=>c.active!==false && !c.is_bonus);
     const scoreRows = [];
     for(const m of state.members) {
       for(const c of dbCategories) {
