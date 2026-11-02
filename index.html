@@ -2753,6 +2753,148 @@ function scoreboardView(){
 }
 
 
+async function reloadSettingsData(){
+  const keepRoute=route;
+  const token=await getValidAccessToken(state?.token||null,false);
+  app.innerHTML="<div class=\"loading\">Refreshing settings…</div>";
+  await loadAuthenticatedState(token);
+  route=keepRoute;
+  renderApp();
+}
+
+function settingsMeetingCountForYear(year){
+  return (state.meetings||[]).filter(m=>
+    String(m.club_year_id||"")===String(year.id)
+    || (!m.club_year_id && String(m.meeting_date)>=String(year.start_date) && String(m.meeting_date)<=String(year.end_date))
+  ).length;
+}
+
+function settingsView(){
+  if(state.mode!=="live" || state.user.role!=="director") return `${mobileTop()}<div class="readonly-note">Settings are available to the club director.</div>`;
+  const years=state.clubYears||[];
+  const active=state.clubYear;
+  const regularCategories=(state.categories||[]).filter(x=>!x.is_bonus).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const cfg=excellenceConfig();
+  const totalActivePoints=regularCategories.filter(x=>x.active!==false).reduce((s,x)=>s+Number(x.default_points||0),0);
+  const yearRows=years.map(y=>{
+    const count=settingsMeetingCountForYear(y);
+    return `<div class="settings-year-row"><div><strong>${esc(y.label)}</strong><small>${esc(formatMeetingDate(y.start_date))} – ${esc(formatMeetingDate(y.end_date))} · ${count} meeting${count===1?"":"s"}</small></div><div class="settings-year-actions"><span class="settings-badge ${y.active?"":"archived"}">${y.active?"Active":"Archived"}</span>${y.active?`<button class="btn btn-ghost" type="button" data-close-year="${y.id}" style="width:auto">Close year</button>`:`<button class="btn btn-ghost" type="button" data-activate-year="${y.id}" style="width:auto">Activate</button>`}</div></div>`;
+  }).join("");
+  const categoryRows=regularCategories.map(cat=>`<div class="settings-score-row"><div class="field"><label>Criterion</label><input id="settingsCatName_${cat.id}" maxlength="80" value="${esc(cat.name)}"></div><div class="field"><label>Points</label><input id="settingsCatPoints_${cat.id}" type="number" min="0" max="1000" step="1" value="${Number(cat.default_points||0)}"></div><label class="settings-check"><input id="settingsCatActive_${cat.id}" type="checkbox" ${cat.active!==false?"checked":""}> Active</label><button class="btn btn-ghost" type="button" data-save-score-category="${cat.id}" style="width:auto">Save</button></div>`).join("");
+  return `${mobileTop()}<div class="settings-page">
+    <div class="topbar"><div><div class="eyebrow">Administration</div><h1>Settings</h1><p>Manage club identity, active year, meeting scoring and Pathfinder Excellence rules.</p></div></div>
+    <div class="settings-grid">
+      <section class="settings-card"><div class="settings-card-head"><h3>Club profile</h3><p>These details identify the club throughout Pathfinder Track and reports.</p></div>
+        <form id="clubProfileForm"><div class="settings-form-grid"><div class="field full"><label for="settingsClubName">Club name</label><input id="settingsClubName" maxlength="120" required value="${esc(state.club?.name||"")}"></div><div class="field full"><label for="settingsClubLocation">Location</label><input id="settingsClubLocation" maxlength="160" value="${esc(state.club?.location||"")}" placeholder="City, State"></div></div><div class="settings-message" id="clubProfileMessage"></div><div class="settings-actions"><button class="btn btn-primary" type="submit" style="width:auto">Save club</button></div></form>
+      </section>
+      <section class="settings-card"><div class="settings-card-head"><h3>Pathfinder Excellence</h3><p>Configure eligibility and the weighted score used for the individual award.</p></div>
+        <form id="excellenceSettingsForm"><div class="settings-form-grid"><div class="field"><label>Meeting efficiency weight (%)</label><input id="excellenceScoreWeight" type="number" min="0" max="100" step="1" value="${cfg.scoreWeight}"></div><div class="field"><label>Attendance weight (%)</label><input id="excellenceAttendanceWeight" type="number" min="0" max="100" step="1" value="${cfg.attendanceWeight}"></div><div class="field"><label>Class progress weight (%)</label><input id="excellenceClassWeight" type="number" min="0" max="100" step="1" value="${cfg.classWeight}"></div><div class="field"><label>Minimum meeting opportunities</label><input id="excellenceMinMeetings" type="number" min="1" max="100" step="1" value="${cfg.minMeetings}"></div><div class="field full"><label>Minimum attendance (%)</label><input id="excellenceMinAttendance" type="number" min="0" max="100" step="0.1" value="${cfg.minAttendance}"></div></div><div class="settings-note">The three weights must total 100%. Changes recalculate the Excellence ranking immediately; historical meeting scores are not modified.</div><div class="settings-message" id="excellenceSettingsMessage"></div><div class="settings-actions"><button class="btn btn-primary" type="submit" style="width:auto">Save Excellence rules</button></div></form>
+      </section>
+      <section class="settings-card full"><div class="settings-card-head"><h3>Club year</h3><p>${active?`Active: ${esc(active.label)}. Dashboard, Scoreboard, Reports and new meetings use this year.`:"No club year is active. Scoreboard and new meeting creation are paused until a year is activated."}</p></div>
+        <form id="clubYearForm"><div class="settings-form-grid"><div class="field"><label for="newClubYearLabel">Label</label><input id="newClubYearLabel" required maxlength="40" placeholder="2027-2028"></div><div class="field"><label for="newClubYearStart">Start date</label><input id="newClubYearStart" type="date" required></div><div class="field"><label for="newClubYearEnd">End date</label><input id="newClubYearEnd" type="date" required></div><label class="settings-check"><input id="newClubYearActivate" type="checkbox"> Activate after creating</label></div><div class="settings-message" id="clubYearMessage"></div><div class="settings-actions"><button class="btn btn-primary" type="submit" style="width:auto">+ Create club year</button></div></form>
+        <div class="settings-year-list">${yearRows||"<div class=\"member-empty\">No club years have been created yet.</div>"}</div><div class="settings-note">Only one year can be active at a time. Activating another year switches the working year for Dashboard, Scoreboard and Reports. Existing data remains attached to its original year.</div>
+      </section>
+      <section class="settings-card full"><div class="settings-card-head"><h3>Meeting scoring criteria</h3><p>Active criteria are used for new meeting scoring. Current active maximum: <strong>${totalActivePoints} points</strong> per Pathfinder. Historical meetings keep their saved point snapshots.</p></div>
+        <div class="settings-score-list">${categoryRows||"<div class=\"member-empty\">No regular scoring criteria configured.</div>"}</div>
+        <form id="addScoreCategoryForm" style="margin-top:14px"><div class="settings-score-row"><div class="field"><label for="newScoreCategoryName">New criterion</label><input id="newScoreCategoryName" maxlength="80" required placeholder="e.g. Community service"></div><div class="field"><label for="newScoreCategoryPoints">Points</label><input id="newScoreCategoryPoints" type="number" min="0" max="1000" step="1" value="5" required></div><div class="settings-check">Regular criterion</div><button class="btn btn-primary" type="submit" style="width:auto">+ Add criterion</button></div></form><div class="settings-message" id="scoreCategoryMessage"></div>
+      </section>
+    </div>
+  </div>`;
+}
+
+function setSettingsMessage(id,message,error=false){
+  const el=document.getElementById(id);
+  if(el){ el.textContent=message||""; el.style.color=error?"var(--red)":"var(--forest-700)"; }
+}
+
+async function saveClubProfile(e){
+  e.preventDefault();
+  const name=(document.getElementById("settingsClubName")?.value||"").trim();
+  const location=(document.getElementById("settingsClubLocation")?.value||"").trim();
+  if(!name){ setSettingsMessage("clubProfileMessage","Club name is required.",true); return; }
+  try{ setSettingsMessage("clubProfileMessage","Saving…"); await sbWrite(`clubs?id=eq.${encodeURIComponent(state.user.club_id)}`,state.token,{method:"PATCH",body:{name,location:location||null},prefer:"return=representation"}); await reloadSettingsData(); }
+  catch(err){ console.error(err); setSettingsMessage("clubProfileMessage",err.message||"Club settings could not be saved.",true); }
+}
+
+async function createClubYear(e){
+  e.preventDefault();
+  const label=(document.getElementById("newClubYearLabel")?.value||"").trim();
+  const start=document.getElementById("newClubYearStart")?.value||"";
+  const end=document.getElementById("newClubYearEnd")?.value||"";
+  const activate=!!document.getElementById("newClubYearActivate")?.checked;
+  if(!label||!start||!end){ setSettingsMessage("clubYearMessage","Label, start date and end date are required.",true); return; }
+  if(end<start){ setSettingsMessage("clubYearMessage","End date must be on or after start date.",true); return; }
+  const overlap=(state.clubYears||[]).find(y=>start<=String(y.end_date)&&end>=String(y.start_date));
+  if(overlap){ setSettingsMessage("clubYearMessage",`This period overlaps ${overlap.label}.`,true); return; }
+  try{
+    setSettingsMessage("clubYearMessage","Creating…");
+    const rows=await sbWrite("club_years",state.token,{body:[{club_id:state.user.club_id,label,start_date:start,end_date:end,active:false}],prefer:"return=representation"});
+    const created=rows?.[0]; if(!created?.id) throw new Error("The club year could not be created.");
+    if(activate){
+      const previous=state.clubYear?.id||null;
+      if(previous) await sbWrite(`club_years?id=eq.${encodeURIComponent(previous)}`,state.token,{method:"PATCH",body:{active:false}});
+      try{ await sbWrite(`club_years?id=eq.${encodeURIComponent(created.id)}`,state.token,{method:"PATCH",body:{active:true}}); }
+      catch(err){ if(previous) try{ await sbWrite(`club_years?id=eq.${encodeURIComponent(previous)}`,state.token,{method:"PATCH",body:{active:true}}); }catch{} throw err; }
+    }
+    await reloadSettingsData();
+  }catch(err){ console.error(err); setSettingsMessage("clubYearMessage",err.message||"Club year could not be created.",true); }
+}
+
+async function activateClubYear(id){
+  const target=(state.clubYears||[]).find(y=>String(y.id)===String(id));
+  if(!target||target.active) return;
+  if(!confirm(`Activate ${target.label} as the club working year?`)) return;
+  const previous=state.clubYear?.id||null;
+  try{
+    if(previous) await sbWrite(`club_years?id=eq.${encodeURIComponent(previous)}`,state.token,{method:"PATCH",body:{active:false}});
+    try{ await sbWrite(`club_years?id=eq.${encodeURIComponent(target.id)}`,state.token,{method:"PATCH",body:{active:true}}); }
+    catch(err){ if(previous) try{ await sbWrite(`club_years?id=eq.${encodeURIComponent(previous)}`,state.token,{method:"PATCH",body:{active:true}}); }catch{} throw err; }
+    await reloadSettingsData();
+  }catch(err){ console.error(err); alert(err.message||"Club year could not be activated."); }
+}
+
+async function closeClubYear(id){
+  const target=(state.clubYears||[]).find(y=>String(y.id)===String(id));
+  if(!target?.active) return;
+  if(!confirm(`Close ${target.label}? Scoreboard and new meetings will pause until another year is activated.`)) return;
+  try{ await sbWrite(`club_years?id=eq.${encodeURIComponent(id)}`,state.token,{method:"PATCH",body:{active:false}}); await reloadSettingsData(); }
+  catch(err){ console.error(err); alert(err.message||"Club year could not be closed."); }
+}
+
+async function saveScoreCategory(id){
+  const name=(document.getElementById("settingsCatName_"+id)?.value||"").trim();
+  const points=Math.max(0,Math.floor(Number(document.getElementById("settingsCatPoints_"+id)?.value||0)));
+  const active=!!document.getElementById("settingsCatActive_"+id)?.checked;
+  if(!name){ setSettingsMessage("scoreCategoryMessage","Criterion name is required.",true); return; }
+  try{ setSettingsMessage("scoreCategoryMessage","Saving…"); await sbWrite(`score_categories?id=eq.${encodeURIComponent(id)}`,state.token,{method:"PATCH",body:{name,default_points:points,active},prefer:"return=representation"}); await reloadSettingsData(); }
+  catch(err){ console.error(err); setSettingsMessage("scoreCategoryMessage",err.message||"Scoring criterion could not be saved.",true); }
+}
+
+async function addScoreCategory(e){
+  e.preventDefault();
+  const name=(document.getElementById("newScoreCategoryName")?.value||"").trim();
+  const points=Math.max(0,Math.floor(Number(document.getElementById("newScoreCategoryPoints")?.value||0)));
+  if(!name){ setSettingsMessage("scoreCategoryMessage","Criterion name is required.",true); return; }
+  const sortOrder=Math.max(0,...(state.categories||[]).map(x=>Number(x.sort_order||0)))+1;
+  try{ setSettingsMessage("scoreCategoryMessage","Adding…"); await sbWrite("score_categories",state.token,{body:[{club_id:state.user.club_id,name,default_points:points,is_bonus:false,active:true,sort_order:sortOrder}],prefer:"return=representation"}); await reloadSettingsData(); }
+  catch(err){ console.error(err); setSettingsMessage("scoreCategoryMessage",err.message||"Scoring criterion could not be added.",true); }
+}
+
+async function saveExcellenceSettings(e){
+  e.preventDefault();
+  const scoreWeight=Math.max(0,Math.min(100,Math.floor(Number(document.getElementById("excellenceScoreWeight")?.value||0))));
+  const attendanceWeight=Math.max(0,Math.min(100,Math.floor(Number(document.getElementById("excellenceAttendanceWeight")?.value||0))));
+  const classWeight=Math.max(0,Math.min(100,Math.floor(Number(document.getElementById("excellenceClassWeight")?.value||0))));
+  const minMeetings=Math.max(1,Math.floor(Number(document.getElementById("excellenceMinMeetings")?.value||1)));
+  const minAttendance=Math.max(0,Math.min(100,Number(document.getElementById("excellenceMinAttendance")?.value||0)));
+  if(scoreWeight+attendanceWeight+classWeight!==100){ setSettingsMessage("excellenceSettingsMessage","The three weights must total 100%.",true); return; }
+  try{
+    setSettingsMessage("excellenceSettingsMessage","Saving…");
+    await sbWrite("club_settings?on_conflict=club_id",state.token,{body:[{club_id:state.user.club_id,excellence_score_weight:scoreWeight,excellence_attendance_weight:attendanceWeight,excellence_class_weight:classWeight,excellence_min_meetings:minMeetings,excellence_min_attendance:minAttendance,updated_at:new Date().toISOString()}],prefer:"resolution=merge-duplicates,return=representation"});
+    await reloadSettingsData();
+  }catch(err){ console.error(err); setSettingsMessage("excellenceSettingsMessage",err.message||"Excellence settings could not be saved.",true); }
+}
+
 function reportDateRange(){
   return {
     from:document.getElementById('reportFrom')?.value || state.clubYear?.start_date || '',
