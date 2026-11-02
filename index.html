@@ -548,7 +548,7 @@ button { cursor: pointer; }
 @media (max-width:650px){ .scoreboard-hero { grid-template-columns:1fr 1fr; } .scoreboard-row { grid-template-columns:38px minmax(0,1fr) 82px; } .scoreboard-progress { grid-column:2/4; } .scoreboard-kpi { padding:14px; } .scoreboard-kpi strong { font-size:23px; } }
 
 .history-page { max-width:1160px; }
-.history-controls { display:grid; grid-template-columns:1.3fr repeat(4,minmax(130px,.7fr)) auto; gap:9px; align-items:end; margin-bottom:14px; padding:13px; background:white; border:1px solid var(--line); border-radius:20px; box-shadow:0 8px 26px rgba(23,63,50,.04); }
+.history-controls { display:grid; grid-template-columns:1.3fr repeat(5,minmax(120px,.7fr)) auto; gap:9px; align-items:end; margin-bottom:14px; padding:13px; background:white; border:1px solid var(--line); border-radius:20px; box-shadow:0 8px 26px rgba(23,63,50,.04); }
 .history-controls .field { margin:0; }
 .history-controls .btn { width:auto; white-space:nowrap; }
 .history-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
@@ -2078,6 +2078,7 @@ async function sbWrite(path, token, { method='POST', body, prefer='return=minima
     try{const payload=await res.json();detail=payload.message||payload.details||payload.hint||'';}catch{}
     throw new Error(detail||`Save failed (${res.status}).`);
   }
+  if(state?.mode==='live' && state?.user?.role==='director') state.auditLoaded=false;
   if(res.status===204) return null;
   const text=await res.text();
   return text?JSON.parse(text):null;
@@ -2863,6 +2864,237 @@ function settingsMeetingCountForYear(year){
     String(m.club_year_id||"")===String(year.id)
     || (!m.club_year_id && String(m.meeting_date)>=String(year.start_date) && String(m.meeting_date)<=String(year.end_date))
   ).length;
+}
+
+async function loadAuditData(force=false){
+  if(!state || state.mode!=='live' || state.user.role!=='director') return;
+  if(state.auditLoaded && !force) return;
+  const rows=await sb(
+    `audit_log?club_id=eq.${encodeURIComponent(state.user.club_id)}&select=id,club_id,actor_id,actor_display_name,action,entity_type,entity_id,entity_label,member_id,meeting_id,unit_id,changed_fields,old_data,new_data,source,created_at&order=created_at.desc&limit=500`,
+    state.token
+  );
+  state.auditLogs=rows||[];
+  state.auditLoaded=true;
+}
+
+function auditEntityMeta(type=''){
+  const map={
+    attendance:{label:'Presence',icon:'✓'},
+    meeting_scores:{label:'Meeting score',icon:'★'},
+    member_requirement_status:{label:'Class requirement',icon:'◫'},
+    members:{label:'Pathfinder',icon:'♙'},
+    meetings:{label:'Meeting / event',icon:'◷'},
+    units:{label:'Unit',icon:'◇'},
+    profiles:{label:'Staff',icon:'♜'},
+    club_years:{label:'Club year',icon:'▣'},
+    score_categories:{label:'Scoring criterion',icon:'+'},
+    club_settings:{label:'Club settings',icon:'⚙'},
+    clubs:{label:'Club profile',icon:'⌂'},
+    instructor_class_levels:{label:'Class assignment',icon:'↔'}
+  };
+  return map[type]||{label:type||'Change',icon:'•'};
+}
+
+function auditFieldLabel(field=''){
+  const map={
+    present:'Presence',points_awarded:'Points awarded',max_points_snapshot:'Maximum points',
+    status:'Status',completed_at:'Completed at',signed_by:'Signed by',notes:'Notes',
+    full_name:'Name',unit_id:'Unit',current_class_level_id:'Class',school_grade:'School grade',
+    active:'Active',meeting_date:'Meeting date',title:'Title',meeting_type:'Meeting type',
+    unit_bonus_points:'Special unit points',club_year_id:'Club year',role:'Role',
+    position_title:'Position',email:'Email',label:'Label',start_date:'Start date',
+    end_date:'End date',name:'Name',default_points:'Default points',is_bonus:'Bonus criterion',
+    sort_order:'Order',location:'Location',excellence_score_weight:'Meeting efficiency weight',
+    excellence_attendance_weight:'Attendance weight',excellence_class_weight:'Class progress weight',
+    excellence_min_meetings:'Minimum meeting opportunities',
+    excellence_min_attendance:'Minimum attendance',profile_id:'Instructor',class_level_id:'Class'
+  };
+  return map[field]||field.replaceAll('_',' ');
+}
+
+function auditValue(field,value){
+  if(value===null || value===undefined || value==='') return '—';
+  if(typeof value==='boolean') return value?'Yes':'No';
+  if(field==='unit_id') return (state.units||[]).find(x=>String(x.id)===String(value))?.name || String(value);
+  if(field==='current_class_level_id' || field==='class_level_id') return (state.classLevels||[]).find(x=>String(x.id)===String(value))?.name || String(value);
+  if(field==='member_id') return (state.allMembers||[]).find(x=>String(x.id)===String(value))?.full_name || String(value);
+  if(field==='meeting_id'){
+    const m=(state.meetings||[]).find(x=>String(x.id)===String(value));
+    return m ? `${m.title||'Meeting'} · ${formatMeetingDate(m.meeting_date)}` : String(value);
+  }
+  if(field==='category_id') return (state.categories||[]).find(x=>String(x.id)===String(value))?.name || String(value);
+  if(field==='club_year_id') return (state.clubYears||[]).find(x=>String(x.id)===String(value))?.label || String(value);
+  if(field==='requirement_id') return (state.requirements||[]).find(x=>String(x.id)===String(value))?.title || String(value);
+  if(field==='profile_id') return (state.staff||[]).find(x=>String(x.id)===String(value))?.full_name || String(value);
+  if(field.endsWith('_date') || field==='start_date' || field==='end_date') return formatMeetingDate(String(value));
+  if(field.endsWith('_at')){
+    const d=new Date(value);
+    return Number.isNaN(d.getTime())?String(value):d.toLocaleString(uiLocale(),{dateStyle:'medium',timeStyle:'short'});
+  }
+  if(typeof value==='object') return JSON.stringify(value);
+  return String(value);
+}
+
+function auditRelevantFields(log){
+  const preferred={
+    attendance:['present','notes'],
+    meeting_scores:['points_awarded','max_points_snapshot','notes'],
+    member_requirement_status:['status','completed_at','signed_by','notes'],
+    members:['full_name','unit_id','current_class_level_id','school_grade','active'],
+    meetings:['title','meeting_date','unit_id','meeting_type','unit_bonus_points','club_year_id'],
+    units:['name','active'],
+    profiles:['full_name','email','role','position_title','unit_id','active'],
+    club_years:['label','start_date','end_date','active'],
+    score_categories:['name','default_points','active','is_bonus','sort_order'],
+    club_settings:['excellence_score_weight','excellence_attendance_weight','excellence_class_weight','excellence_min_meetings','excellence_min_attendance'],
+    clubs:['name','location'],
+    instructor_class_levels:['profile_id','class_level_id']
+  };
+  const changed=Array.isArray(log.changed_fields)?log.changed_fields:[];
+  const ordered=(preferred[log.entity_type]||[]).filter(f=>changed.includes(f));
+  if(ordered.length) return ordered;
+  return changed.filter(f=>!['id','club_id','created_by','recorded_by'].includes(f));
+}
+
+function auditActionLabel(action=''){
+  const map={insert:'Created',update:'Updated',delete:'Deleted',completed:'Completed',uncompleted:'Uncompleted'};
+  return map[action]||action||'Changed';
+}
+
+function auditSummary(log){
+  const label=log.entity_label||auditEntityMeta(log.entity_type).label;
+  const oldData=log.old_data||{}, newData=log.new_data||{};
+  if(log.entity_type==='attendance'){
+    const value=newData.present ?? oldData.present;
+    return `${value===true?'Marked present':value===false?'Marked absent':'Presence updated'} · ${label}`;
+  }
+  if(log.entity_type==='meeting_scores'){
+    const oldPts=oldData.points_awarded;
+    const newPts=newData.points_awarded;
+    if(oldPts!==undefined && newPts!==undefined && oldPts!==newPts) return `Score changed ${oldPts} → ${newPts} · ${label}`;
+    if(newPts!==undefined) return `${newPts} points recorded · ${label}`;
+    return `Score record ${auditActionLabel(log.action).toLowerCase()} · ${label}`;
+  }
+  if(log.entity_type==='member_requirement_status'){
+    if(log.action==='completed') return `Requirement completed · ${label}`;
+    if(log.action==='uncompleted') return `Requirement reopened · ${label}`;
+    const status=newData.status??oldData.status;
+    return `Requirement ${status?String(status).replaceAll('_',' '):'updated'} · ${label}`;
+  }
+  if(log.entity_type==='club_years' && Array.isArray(log.changed_fields) && log.changed_fields.includes('active')){
+    return `${newData.active?'Club year activated':'Club year closed'} · ${label}`;
+  }
+  if(log.entity_type==='members') return `${auditActionLabel(log.action)} Pathfinder · ${label}`;
+  if(log.entity_type==='meetings') return `${auditActionLabel(log.action)} meeting/event · ${label}`;
+  if(log.entity_type==='profiles') return `${auditActionLabel(log.action)} staff record · ${label}`;
+  if(log.entity_type==='units') return `${auditActionLabel(log.action)} unit · ${label}`;
+  if(log.entity_type==='score_categories') return `${auditActionLabel(log.action)} scoring criterion · ${label}`;
+  if(log.entity_type==='club_settings') return 'Pathfinder Excellence settings updated';
+  if(log.entity_type==='clubs') return `Club profile ${auditActionLabel(log.action).toLowerCase()} · ${label}`;
+  if(log.entity_type==='instructor_class_levels') return `Class assignment ${auditActionLabel(log.action).toLowerCase()} · ${label}`;
+  return `${auditActionLabel(log.action)} · ${label}`;
+}
+
+function auditDateTime(value){
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime())) return String(value||'');
+  return d.toLocaleString(uiLocale(),{dateStyle:'medium',timeStyle:'short'});
+}
+
+function filteredAuditLogs(){
+  const q=normalizeMemberSearch(document.getElementById('historySearch')?.value||'');
+  const type=document.getElementById('historyType')?.value||'';
+  const action=document.getElementById('historyAction')?.value||'';
+  const actor=document.getElementById('historyActor')?.value||'';
+  const from=document.getElementById('historyFrom')?.value||'';
+  const to=document.getElementById('historyTo')?.value||'';
+  return (state.auditLogs||[]).filter(log=>{
+    if(type && log.entity_type!==type) return false;
+    if(action && log.action!==action) return false;
+    if(actor==='__system' && log.actor_id) return false;
+    if(actor && actor!=='__system' && String(log.actor_id)!==actor) return false;
+    const day=String(log.created_at||'').slice(0,10);
+    if(from && day<from) return false;
+    if(to && day>to) return false;
+    if(q){
+      const hay=normalizeMemberSearch([
+        log.entity_label,log.actor_display_name,log.action,
+        auditEntityMeta(log.entity_type).label,
+        ...(Array.isArray(log.changed_fields)?log.changed_fields:[])
+      ].filter(Boolean).join(' '));
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function historyChangesHtml(log){
+  const fields=auditRelevantFields(log);
+  if(!fields.length) return '<div class="report-muted">No field-level details available.</div>';
+  return `<div class="history-change-list">${fields.map(field=>{
+    const oldValue=auditValue(field,log.old_data?.[field]);
+    const newValue=auditValue(field,log.new_data?.[field]);
+    return `<div class="history-change"><span>${esc(auditFieldLabel(field))}</span><div class="history-old">${esc(oldValue)}</div><span class="history-arrow">→</span><div class="history-new">${esc(newValue)}</div></div>`;
+  }).join('')}</div>`;
+}
+
+function historyResultsHtml(logs){
+  const actorCount=new Set(logs.map(x=>x.actor_id||'system')).size;
+  const meetingActivity=logs.filter(x=>['attendance','meeting_scores','meetings'].includes(x.entity_type)).length;
+  const latest=logs[0]?.created_at ? auditDateTime(logs[0].created_at) : '—';
+  const visible=logs.slice(0,200);
+  const list=visible.map(log=>{
+    const meta=auditEntityMeta(log.entity_type);
+    const actor=log.actor_display_name||'System';
+    return `<article class="history-item">
+      <div class="history-main">
+        <div class="history-icon">${meta.icon}</div>
+        <div class="history-copy"><strong>${esc(auditSummary(log))}</strong><p>${esc(meta.label)} · ${esc(actor)}<span class="history-action ${esc(log.action)}">${esc(auditActionLabel(log.action))}</span></p></div>
+        <div class="history-meta"><strong>${esc(auditDateTime(log.created_at))}</strong><span>${esc(log.source==='legacy_requirement_audit'?'Historical class audit':'Automatic audit')}</span></div>
+      </div>
+      <details class="history-details"><summary>View changes</summary>${historyChangesHtml(log)}</details>
+    </article>`;
+  }).join('');
+  return `<section class="history-summary">
+    <div class="mini-stat"><span>Changes</span><strong>${logs.length}</strong></div>
+    <div class="mini-stat"><span>Actors</span><strong>${actorCount}</strong></div>
+    <div class="mini-stat"><span>Meeting activity</span><strong>${meetingActivity}</strong></div>
+    <div class="mini-stat"><span>Latest change</span><strong style="font-size:13px">${esc(latest)}</strong></div>
+  </section>
+  ${logs.length>200?`<div class="settings-note" style="margin:0 0 10px">Showing the 200 most recent matching changes out of ${logs.length}.</div>`:''}
+  <div class="history-list">${list||'<div class="history-empty">No changes match the selected filters.</div>'}</div>`;
+}
+
+function renderHistoryResults(){
+  const host=document.getElementById('historyResults');
+  if(host) host.innerHTML=historyResultsHtml(filteredAuditLogs());
+}
+
+function historyView(){
+  if(state.mode!=='live' || state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">History is available to the club director.</div>`;
+  if(!state.auditLoaded) return `${mobileTop()}<div class="history-page"><div class="topbar"><div><div class="eyebrow">Accountability</div><h1>History</h1><p>Loading the club audit trail…</p></div></div><div class="history-empty">Loading history…</div></div>`;
+
+  const actorMap=new Map();
+  for(const log of state.auditLogs||[]){
+    if(log.actor_id) actorMap.set(String(log.actor_id),log.actor_display_name||'Staff member');
+  }
+  const actors=[...actorMap.entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+  const actions=[...new Set((state.auditLogs||[]).map(x=>x.action).filter(Boolean))].sort();
+  return `${mobileTop()}<div class="history-page">
+    <div class="topbar"><div><div class="eyebrow">Accountability</div><h1>History</h1><p>See who changed attendance, scores, requirements, members, meetings and club settings.</p></div></div>
+    <section class="history-controls">
+      <div class="field"><label for="historySearch">Search</label><input id="historySearch" type="search" placeholder="Pathfinder, meeting, criterion…"></div>
+      <div class="field"><label for="historyType">Type</label><select id="historyType"><option value="">All types</option>
+        <option value="attendance">Presence</option><option value="meeting_scores">Meeting scores</option><option value="member_requirement_status">Class requirements</option><option value="members">Pathfinders</option><option value="meetings">Meetings / events</option><option value="units">Units</option><option value="profiles">Staff</option><option value="club_years">Club years</option><option value="score_categories">Scoring criteria</option><option value="club_settings">Club settings</option><option value="clubs">Club profile</option><option value="instructor_class_levels">Class assignments</option>
+      </select></div>
+      <div class="field"><label for="historyAction">Action</label><select id="historyAction"><option value="">All actions</option>${actions.map(x=>`<option value="${esc(x)}">${esc(auditActionLabel(x))}</option>`).join('')}</select></div>
+      <div class="field"><label for="historyActor">Changed by</label><select id="historyActor"><option value="">Everyone</option>${actors.map(([id,name])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('')}<option value="__system">System</option></select></div>
+      <div class="field"><label for="historyFrom">From</label><input id="historyFrom" type="date"></div>
+      <div class="field"><label for="historyTo">To</label><input id="historyTo" type="date"></div>
+      <button class="btn btn-ghost" id="refreshHistoryBtn" type="button">↻ Refresh</button>
+    </section>
+    <div id="historyResults">${historyResultsHtml(state.auditLogs||[])}</div>
+  </div>`;
 }
 
 function settingsView(){
