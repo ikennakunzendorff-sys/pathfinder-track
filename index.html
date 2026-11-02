@@ -1050,6 +1050,14 @@ const UI_TRANSLATIONS_AUDIT = {
     "The ranking starts when regular meeting attendance and scoring are saved.":"O ranking começa quando presença e pontuação de reuniões regulares são salvas.",
     "Loading individual results…":"Carregando resultados individuais…",
     "No active Pathfinders are available for this ranking yet.":"Ainda não há Desbravadores ativos disponíveis para este ranking.",
+    "Eligible":"Elegível",
+    "In qualification":"Em qualificação",
+    "Not ranked":"Sem classificação",
+    "Needs 1 more meeting":"Precisa de mais 1 reunião",
+    "Attendance below 60%":"Presença abaixo de 60%",
+    "No saved scoring":"Sem pontuação salva",
+    "Only eligible Pathfinders are ranked. Special unit-event points are excluded, and attendance is measured against every regular meeting opportunity since the Pathfinder joined.":"Somente Desbravadores elegíveis entram no ranking. Pontos especiais de eventos da unidade são excluídos, e a presença é calculada sobre todas as oportunidades de reuniões regulares desde a entrada do Desbravador.",
+    "Eligibility requires at least 3 regular meeting opportunities and at least 60% attendance. Meeting opportunities begin on the Pathfinder's registration date. After eligibility, the ranking uses the weighted percentages above.":"A elegibilidade exige pelo menos 3 oportunidades de reuniões regulares e no mínimo 60% de presença. As oportunidades começam na data de cadastro do Desbravador. Depois de elegível, o ranking utiliza os percentuais ponderados acima.",
     "meeting":"reunião",
     "meetings":"reuniões",
     "Meeting / Event":"Reunião / Evento",
@@ -1204,6 +1212,14 @@ const UI_TRANSLATIONS_AUDIT = {
     "The ranking starts when regular meeting attendance and scoring are saved.":"La clasificación comienza cuando se guardan la asistencia y puntuación de reuniones regulares.",
     "Loading individual results…":"Cargando resultados individuales…",
     "No active Pathfinders are available for this ranking yet.":"Aún no hay Conquistadores activos disponibles para esta clasificación.",
+    "Eligible":"Elegible",
+    "In qualification":"En calificación",
+    "Not ranked":"Sin clasificación",
+    "Needs 1 more meeting":"Necesita 1 reunión más",
+    "Attendance below 60%":"Asistencia inferior al 60%",
+    "No saved scoring":"Sin puntuación guardada",
+    "Only eligible Pathfinders are ranked. Special unit-event points are excluded, and attendance is measured against every regular meeting opportunity since the Pathfinder joined.":"Solo los Conquistadores elegibles entran en la clasificación. Los puntos especiales de eventos de unidad quedan excluidos y la asistencia se calcula sobre todas las oportunidades de reuniones regulares desde su ingreso.",
+    "Eligibility requires at least 3 regular meeting opportunities and at least 60% attendance. Meeting opportunities begin on the Pathfinder's registration date. After eligibility, the ranking uses the weighted percentages above.":"La elegibilidad requiere al menos 3 oportunidades de reuniones regulares y un mínimo de 60% de asistencia. Las oportunidades comienzan en la fecha de registro del Conquistador. Después de ser elegible, la clasificación usa los porcentajes ponderados anteriores.",
     "meeting":"reunión",
     "meetings":"reuniones",
     "Meeting / Event":"Reunión / Evento",
@@ -1356,6 +1372,19 @@ function translateUiString(value){
 
   m=s.match(/^([\d.]+)% of (\d+(?:\.\d+)?)$/i);
   if(m) return lead+(isPt?`${m[1]}% de ${m[2]}`:`${m[1]}% de ${m[2]}`)+tail;
+
+  m=s.match(/^Needs (\d+) more meetings?$/i);
+  if(m) return lead+(isPt
+    ? `Precisa de mais ${m[1]} ${plural(m[1],'reunião','reuniões')}`
+    : `Necesita ${m[1]} ${plural(m[1],'reunión más','reuniones más')}`)+tail;
+
+  m=s.match(/^In qualification · (.+)$/i);
+  if(m) return lead+(isPt?'Em qualificação · ':'En calificación · ')+translateUiString(m[1]).trim()+tail;
+
+  m=s.match(/^(.+?) · (\d+) meeting opportunit(?:y|ies)$/i);
+  if(m) return lead+(isPt
+    ? `${m[1]} · ${m[2]} ${plural(m[2],'oportunidade de reunião','oportunidades de reunião')}`
+    : `${m[1]} · ${m[2]} ${plural(m[2],'oportunidad de reunión','oportunidades de reunión')}`)+tail;
 
   // Additional audited dynamic phrases.
   m=s.match(/^(\d+) active Pathfinders?$/i);
