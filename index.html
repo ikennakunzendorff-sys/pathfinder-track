@@ -547,6 +547,33 @@ button { cursor: pointer; }
 @media (max-width:960px){ .scoreboard-hero { grid-template-columns:1fr 1fr; } .scoreboard-leader { grid-column:1/-1; } .scoreboard-grid { grid-template-columns:1fr; } }
 @media (max-width:650px){ .scoreboard-hero { grid-template-columns:1fr 1fr; } .scoreboard-row { grid-template-columns:38px minmax(0,1fr) 82px; } .scoreboard-progress { grid-column:2/4; } .scoreboard-kpi { padding:14px; } .scoreboard-kpi strong { font-size:23px; } }
 
+.settings-page { max-width:1160px; }
+.settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+.settings-card { background:white; border:1px solid var(--line); border-radius:22px; padding:18px; box-shadow:0 8px 28px rgba(23,63,50,.045); }
+.settings-card.full { grid-column:1/-1; }
+.settings-card-head { margin-bottom:14px; }
+.settings-card-head h3 { margin:0; color:var(--forest-900); font-size:17px; }
+.settings-card-head p { margin:5px 0 0; color:var(--muted); font-size:11px; line-height:1.45; }
+.settings-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.settings-form-grid .full { grid-column:1/-1; }
+.settings-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+.settings-message { min-height:18px; margin-top:8px; font-size:11px; color:var(--forest-700); }
+.settings-year-list { display:grid; gap:9px; margin-top:14px; }
+.settings-year-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; border:1px solid var(--line); border-radius:14px; padding:12px; }
+.settings-year-row strong { display:block; color:var(--forest-900); font-size:13px; }
+.settings-year-row small { display:block; color:var(--muted); margin-top:3px; font-size:10px; }
+.settings-year-actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+.settings-badge { display:inline-flex; padding:4px 8px; border-radius:999px; font-size:9px; font-weight:850; background:var(--forest-100); color:var(--forest-800); }
+.settings-badge.archived { background:#f2f3f2; color:var(--muted); }
+.settings-score-list { display:grid; gap:8px; }
+.settings-score-row { display:grid; grid-template-columns:minmax(180px,1fr) 100px 110px auto; gap:8px; align-items:end; border:1px solid var(--line); border-radius:14px; padding:10px; }
+.settings-score-row .field { margin:0; }
+.settings-check { display:flex; align-items:center; gap:7px; min-height:42px; font-size:11px; color:var(--muted); font-weight:750; }
+.settings-check input { width:16px; height:16px; }
+.settings-note { margin-top:10px; padding:10px 12px; border-radius:12px; background:#f6f8f7; color:var(--muted); font-size:10px; line-height:1.45; }
+@media (max-width:820px){ .settings-grid { grid-template-columns:1fr; } .settings-card.full { grid-column:auto; } .settings-score-row { grid-template-columns:1fr 90px; } }
+@media (max-width:560px){ .settings-form-grid { grid-template-columns:1fr; } .settings-form-grid .full { grid-column:auto; } .settings-year-row { grid-template-columns:1fr; } .settings-year-actions { justify-content:flex-start; } .settings-score-row { grid-template-columns:1fr; } }
+
 .reports-page { max-width:1180px; }
 .report-controls { display:grid; grid-template-columns:1.15fr 1fr 1fr 1fr auto auto; gap:10px; align-items:end; margin-bottom:16px; padding:14px; background:white; border:1px solid var(--line); border-radius:20px; box-shadow:0 8px 24px rgba(23,63,50,.04); }
 .report-controls .field { margin:0; }
@@ -2126,7 +2153,7 @@ function sidebar() {
       ${state.user.role==='director'?`<button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★ Scoreboard</button>`:''}
       ${state.user.role==='director'?`<button class="${route==='staff'?'active':''}" data-route="staff">♜ Staff</button>`:''}
       ${state.user.role==='director'?`<button class="${route==='reports'?'active':''}" data-route="reports">▤ Reports</button>`:''}
-      ${state.user.role==='director'?'<button>⚙ Settings</button>':''}
+      ${state.user.role==='director'?`<button class="${route==='settings'?'active':''}" data-route="settings">⚙ Settings</button>`:''}
     </nav>
     <div class="sidebar-spacer"></div>
     <div class="profile-mini"><div class="avatar">${initials(state.user.full_name)}</div><div><strong>${state.user.full_name}</strong><small>${translateUiString(state.user.role)}</small></div></div>
@@ -2137,9 +2164,9 @@ function mobileTop(){ return `<div class="mobile-top">${brand()}<div style="disp
 function bottomNav(){
   const admin=state.user.role==='director';
   const meetingAccess=canManageMeetings();
-  const count=admin?8:(meetingAccess?4:3);
+  const count=admin?9:(meetingAccess?4:3);
   const min=admin?'56px':'1fr';
-  return `<nav class="bottom-nav" style="grid-template-columns:repeat(${count},minmax(${min},1fr));"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button>${meetingAccess?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button>`:''}<button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★<br>Scores</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button><button class="${route==='reports'?'active':''}" data-route="reports">▤<br>Reports</button>`:''}</nav>`;
+  return `<nav class="bottom-nav" style="grid-template-columns:repeat(${count},minmax(${min},1fr));"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button>${meetingAccess?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button>`:''}<button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★<br>Scores</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button><button class="${route==='reports'?'active':''}" data-route="reports">▤<br>Reports</button><button class="${route==='settings'?'active':''}" data-route="settings">⚙<br>Settings</button>`:''}</nav>`;
 }
 
 function dashboardGreeting(){
@@ -3468,7 +3495,7 @@ function scoreCard(m) {
 function renderApp() {
   if(!state) return loginView();
   if(route==='meeting' && !canManageMeetings()) route='classes';
-  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():(route==='reports'?reportsView():dashboardView()))))))}</main></div>${bottomNav()}`;
+  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():(route==='reports'?reportsView():(route==='settings'?settingsView():dashboardView())))))))}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
   ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(translateUiString(err.message || 'Unit could not be loaded.')); renderApp(); } }; });
