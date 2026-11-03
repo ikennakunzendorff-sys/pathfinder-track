@@ -86,6 +86,10 @@
     button.disabled=true;
     try{
       if(approve){
+        // Never silently replace an existing Director/Instructor's role through a public request.
+        const existingStaff=(state.staff||[]).find(p=>String(p.email||"").toLowerCase()===record.email.toLowerCase());
+        if(existingStaff && existingStaff.role!=="viewer")
+          throw Error(t("This email already belongs to a staff account. Review it in Staff instead.","Este e-mail já pertence a uma conta da diretoria. Revise em Staff.","Este correo ya pertenece a una cuenta directiva. Revíselo en Staff."));
         // The existing secure invitation function checks the Director JWT and club.
         await callEdgeFunction("staff-invite",{
           email:record.email,full_name:record.full_name,
