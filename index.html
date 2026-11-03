@@ -2074,9 +2074,16 @@ function passwordSetupView(accessToken,type='invite',refreshToken=null,expiresIn
       const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{method:'PUT',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({password})});
       let payload={}; try{payload=await res.json();}catch{}
       if(!res.ok) throw new Error(payload.msg||payload.message||payload.error_description||'Password could not be set.');
-      saveAuthSession({access_token:accessToken,refresh_token:refreshToken,expires_in:expiresIn,expires_at:expiresAt});
+      const loginEmail=String(payload.email||'').trim().toLowerCase();
+      clearAuthSession();
+      state=null;
       history.replaceState({},document.title,location.pathname+location.search);
-      await loadAuthenticatedState(accessToken); route='dashboard'; renderApp();
+      loginView();
+      const emailBox=document.getElementById('email');
+      if(emailBox)emailBox.value=loginEmail;
+      const notice=document.getElementById('formMessage');
+      if(notice)notice.textContent='Senha definida! Digite sua senha para entrar.';
+      document.getElementById('password')?.focus();
     }catch(err){ console.error(err); msg.textContent=err.message||'Account activation failed.'; btn.disabled=false; btn.textContent='Activate account'; }
   };
 }
