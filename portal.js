@@ -57,7 +57,7 @@
    const earned=scores.reduce((sum,r)=>sum+Number(r.points_awarded||0),0);
    const maximum=scores.reduce((sum,r)=>sum+Number(r.max_points_snapshot||0),0);
    const attend=(state.portalAttendance||[]).filter(x=>String(x.member_id)===id);
-   const present=att.filter(x=>x.present===true).length;
+   const present=attend.filter(x=>x.present===true).length;
    const attPct=attend.length?Math.round(100*present/attend.length):0;
    const meetingIndex=new Map((state.meetings||[]).map(m=>[String(m.id),m]));
    const latest=attend.slice().sort((a,b)=>String(meetingIndex.get(String(b.meeting_id))?.meeting_date||"").localeCompare(String(meetingIndex.get(String(a.meeting_id))?.meeting_date||""))).slice(0,6).map(x=>{
