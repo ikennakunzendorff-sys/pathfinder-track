@@ -3468,8 +3468,28 @@ function reportDownloadCsv(){
 }
 function reportsView(){
   if(state.mode!=='live'||state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">Reports are available to the club director.</div>`;
-  const start=state.clubYear?.start_date||'', end=state.clubYear?.end_date||localISODate();
-  return `${mobileTop()}<div class="reports-page"><div class="topbar"><div><div class="eyebrow">Club records</div><h1>Reports</h1><p>${esc(state.clubYear?.label||'Current club year')} · Generate operational reports from saved Pathfinder Track data.</p></div></div><section class="report-controls"><div class="field"><label for="reportType">Report</label><select id="reportType"><option value="units">Units</option><option value="members">Pathfinders</option><option value="classes">Classes</option><option value="meetings">Meetings</option></select></div><div class="field"><label for="reportUnit">Unit</label><select id="reportUnit"><option value="">All units</option>${(state.units||[]).filter(u=>u.active!==false).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select></div><div class="field"><label for="reportFrom">From</label><input id="reportFrom" type="date" value="${esc(start)}"></div><div class="field"><label for="reportTo">To</label><input id="reportTo" type="date" value="${esc(end)}"></div><button class="btn btn-ghost" id="reportCsvBtn" type="button">↓ CSV</button><button class="btn btn-primary" id="reportPrintBtn" type="button">Print / PDF</button></section><div id="reportOutput"></div></div>`;
+  const year=reportSelectedYear(),start=year?.start_date||'',end=year?.end_date||localISODate();
+  const years=(state.clubYears||[]).slice().sort((a,b)=>String(b.start_date).localeCompare(String(a.start_date)));
+  const yearOptions=years.map(y=>`<option value="${esc(y.id)}" ${String(y.id)===String(year?.id)?'selected':''}>${esc(y.label)} (${esc(y.start_date)} – ${esc(y.end_date)})${y.active?' · active':''}</option>`).join('');
+  const members=(state.allMembers||[]).slice().sort((a,b)=>a.full_name.localeCompare(b.full_name));
+  return `${mobileTop()}<div class="reports-page"><div class="topbar"><div><div class="eyebrow">Club records</div><h1>Reports</h1><p>Consult club years, individual records and saved scoring. Export to CSV or use Print / PDF to save a formatted PDF.</p></div></div><section class="report-controls">
+    <div class="field"><label for="reportType">Report</label><select id="reportType"><option value="units">Units</option><option value="members">Pathfinders</option><option value="individual">Individual Pathfinder</option><option value="classes">Classes</option><option value="meetings">Meetings</option></select></div>
+    <div class="field"><label for="reportYear">Club year</label><select id="reportYear">${yearOptions}</select></div>
+    <div class="field"><label for="reportUnit">Unit (current)</label><select id="reportUnit"><option value="">All units</option>${(state.units||[]).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select></div>
+    <div class="field" id="reportMemberField" hidden><label for="reportMember">Pathfinder</label><select id="reportMember"><option value="">Select Pathfinder</option>${members.map(m=>`<option value="${esc(m.id)}">${esc(m.full_name)}${m.active===false?' (archived)':''}</option>`).join('')}</select></div>
+    <div class="field" id="reportFromField"><label for="reportFrom">From</label><input id="reportFrom" type="date" value="${esc(start)}"></div>
+    <div class="field" id="reportToField"><label for="reportTo">To</label><input id="reportTo" type="date" value="${esc(end)}"></div>
+    <button class="btn btn-ghost" id="reportCsvBtn" type="button">↓ CSV</button><button class="btn btn-primary" id="reportPrintBtn" type="button">Print / PDF</button>
+  </section><div id="reportOutput"></div></div>`;
+}
+function updateReportControls(){
+  const type=document.getElementById('reportType')?.value||'units';
+  const member=document.getElementById('reportMemberField');
+  if(member)member.hidden=type!=='individual';
+  // Class progress is always a current snapshot, not historical period data.
+  for(const id of ['reportFromField','reportToField']){
+    const el=document.getElementById(id);if(el)el.hidden=type==='classes';
+  }
 }
 
 function unitMembers(unitId,activeOnly=true){
@@ -4175,7 +4195,9 @@ function renderApp() {
   const staffModal=document.getElementById('staffModal'); if(staffModal) staffModal.onclick=e=>{ if(e.target===staffModal) closeStaffEditor(); };
   document.querySelectorAll('[data-scoreboard-mode]').forEach(btn=>btn.onclick=()=>{ scoreboardMode=btn.dataset.scoreboardMode||'units'; renderApp(); });
   const refreshScoreboard=document.getElementById('refreshScoreboardBtn'); if(refreshScoreboard) refreshScoreboard.onclick=async()=>{ refreshScoreboard.disabled=true; refreshScoreboard.textContent='Refreshing…'; try{ await loadScoreboardData(true); renderApp(); }catch(err){ console.error(err); alert(translateUiString(err.message||'Scoreboard could not be refreshed.')); refreshScoreboard.disabled=false; refreshScoreboard.textContent='↻ Refresh scores'; } };
-  ['reportType','reportUnit','reportFrom','reportTo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.onchange=renderReportOutput; });
+  ['reportType','reportUnit','reportFrom','reportTo','reportMember'].forEach(id=>{ const el=document.getElementById(id); if(el) el.onchange=()=>{updateReportControls();renderReportOutput();}; });
+  const reportYearSelect=document.getElementById('reportYear');if(reportYearSelect)reportYearSelect.onchange=changeReportYear;
+  if(route==='reports')updateReportControls();
   const reportCsvBtn=document.getElementById('reportCsvBtn'); if(reportCsvBtn) reportCsvBtn.onclick=reportDownloadCsv;
   const reportPrintBtn=document.getElementById('reportPrintBtn'); if(reportPrintBtn) reportPrintBtn.onclick=()=>window.print();
   if(route==='reports') renderReportOutput();
