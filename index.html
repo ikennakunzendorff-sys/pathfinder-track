@@ -2478,9 +2478,10 @@ function membersView() {
   const visibleUnits = new Set(source.filter(m=>m.active!==false && m.unit_id).map(m=>String(m.unit_id))).size;
   const classCount = new Set(source.filter(m=>m.active!==false && m.current_class_level_id).map(m=>String(m.current_class_level_id))).size;
   return `${mobileTop()}<div class="members-page">
-    <div class="topbar"><div><h1>Members</h1><p>${esc(state.club.name)} · Pathfinder roster</p></div><div class="top-actions">${editable?'<button class="btn btn-primary" id="addMemberBtn" style="width:auto">+ Add Pathfinder</button>':''}</div></div>
+    <div class="topbar"><div><h1>Members</h1><p>${esc(state.club.name)} · Pathfinder roster</p></div><div class="top-actions">${editable?'<button class="btn btn-ghost" id="bulkImportOpen" style="width:auto">⇧ Import CSV / Excel</button><button class="btn btn-primary" id="addMemberBtn" style="width:auto">+ Add Pathfinder</button>':''}</div></div>
     ${editable?'<div class="mobile-unit-picker"><button class="btn btn-primary" id="addMemberBtnMobile" style="width:100%">+ Add Pathfinder</button></div>':''}
     ${!editable?'<div class="readonly-note">You can view the members allowed by your role. Member registration and editing are available to the club director.</div>':''}
+    ${editable && window.PTMemberImport ? window.PTMemberImport.panel() : ''}
     <section class="members-summary">
       <div class="mini-stat"><span>Active</span><strong>${activeCount}</strong></div>
       <div class="mini-stat"><span>Archived</span><strong>${inactiveCount}</strong></div>
@@ -4105,7 +4106,7 @@ function renderApp() {
   const historySearch=document.getElementById('historySearch'); if(historySearch) historySearch.oninput=renderHistoryResults;
   const refreshHistoryBtn=document.getElementById('refreshHistoryBtn'); if(refreshHistoryBtn) refreshHistoryBtn.onclick=async()=>{ refreshHistoryBtn.disabled=true; refreshHistoryBtn.textContent='Refreshing…'; try{ await loadAuditData(true); renderApp(); }catch(err){ console.error(err); alert(translateUiString(err.message||'History could not be refreshed.')); refreshHistoryBtn.disabled=false; refreshHistoryBtn.textContent='↻ Refresh'; } };
   if(route==='history') renderHistoryResults();
-  if(route==='members') filterMemberDirectory();
+  if(route==='members') { filterMemberDirectory(); if(window.PTMemberImport) window.PTMemberImport.bind(); }
 }
 
 function bindNavigation(){
@@ -4303,5 +4304,6 @@ function signOut(){
 })();
 
   </script>
+  <script src="member-import.js"></script>
 </body>
 </html>
