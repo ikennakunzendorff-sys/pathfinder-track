@@ -163,7 +163,7 @@
   }
   function bind(){
     var showBtn=document.getElementById("bulkImportOpen"),closeBtn=document.getElementById("bulkImportClose"),file=document.getElementById("bulkImportFile"),tmpl=document.getElementById("bulkImportTemplate"),saveBtn=document.getElementById("bulkImportSave");
-    if(showBtn)showBtn.onclick=show;
+    if(showBtn)showBtn.onclick=show;var mobileShowBtn=document.getElementById("bulkImportOpenMobile");if(mobileShowBtn)mobileShowBtn.onclick=show;
     if(closeBtn)closeBtn.onclick=hide;
     if(file)file.onchange=fileChanged;
     if(tmpl)tmpl.onclick=template;
