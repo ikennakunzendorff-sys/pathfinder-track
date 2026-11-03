@@ -46,7 +46,7 @@
       '</select></div>':"";
    if(!person)return '<div class="director-dashboard">'+header()+
       '<section class="card" style="padding:22px;margin-top:16px"><h3>Nenhum Desbravador vinculado</h3>'+
-      '<p>O Director precisa verificar e vincular seu cadastro antes que você possa consultar informações individuais.</p></section></div>';
+      '<p>O Director precisa verificar e vincular seu cadastro antes que você possa consultar informações individuais.</p></section><button class="btn btn-ghost" type="button" data-portal-logout style="width:auto;margin-top:15px">Sair</button></div>';
    const id=String(person.id);
    const statuses=(state.requirementStatuses||[]).filter(x=>String(x.member_id)===id);
    const classReqs=(state.requirements||[]).filter(r=>String(r.class_level_id)===String(person.current_class_level_id)&&!r.is_advanced);
@@ -78,7 +78,7 @@
      '<section class="card" style="margin-top:14px"><div class="card-head"><div><h3>Minhas últimas reuniões</h3><p>Somente reuniões com presença individual registrada.</p></div></div><div class="card-body">'+(latest||'<div class="member-empty">Nenhuma presença registrada.</div>')+'</div></section>'+
      '<section class="card" style="margin-top:14px;padding:20px"><h3>Biblioteca de Classes</h3><p>Em desenvolvimento. Futuramente, atividades e evidências poderão ser enviadas para avaliação do instrutor.</p></section>'+
      '<p class="form-hint" style="margin-top:14px">Os resultados são somente para consulta e podem depender do lançamento das reuniões e requisitos pela liderança. Não é possível alterar requisitos nem pontuações por este portal.</p>'+
-     '</div>';
+     '<button class="btn btn-ghost" type="button" data-portal-logout style="width:auto;margin-top:12px">Sair</button></div>';
  }
  function header(){
    return '<div class="topbar"><div><div class="eyebrow">Portal do Desbravador</div><h1>Olá, '+h((state.user.full_name||"").split(" ")[0])+'</h1><p>'+
