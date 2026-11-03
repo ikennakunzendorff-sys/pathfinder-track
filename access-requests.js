@@ -1,7 +1,7 @@
 /* Pathfinder Track — Parent / Pathfinder access request and Director verification. */
 (function(){
   "use strict";
-  let loading=false, requests=[],openId=null;
+  let loading=false, processing=false, requests=[],openId=null;
   const lang=()=>typeof uiLanguage==="string"?uiLanguage:"pt";
   const tr=(en,pt,es)=>lang()==="pt"?pt:(lang()==="es"?es:en);
   const h=v=>esc(String(v??""));
@@ -98,13 +98,43 @@
       body={...body,member_ids:selected,identity_verified:true,guardian_authorization_confirmed:true};
     }
     if(!confirm(approve?tr("Approve this account and member links?","Aprovar esta conta e os vínculos?","¿Aprobar cuenta y vínculos?"):tr("Reject this request?","Recusar esta solicitação?","¿Rechazar solicitud?")))return;
-    btn.disabled=true;
+    if(processing)return;
+    processing=true;
+    const previousLabel=btn.textContent;
+    const panel=btn.closest("section");
+    const controls=Array.from(panel?.querySelectorAll("button")||[]);
+    controls.forEach(control=>control.disabled=true);
+    btn.textContent=approve
+      ?tr("⏳ Processing invitation…","⏳ Processando aprovação e convite…","⏳ Procesando aprobación e invitación…")
+      :tr("⏳ Processing request…","⏳ Processando solicitação…","⏳ Procesando solicitud…");
+    btn.setAttribute("aria-busy","true");
+    const notice=document.createElement("p");
+    notice.setAttribute("role","status");
+    notice.setAttribute("aria-live","polite");
+    notice.style.cssText="margin:10px 0 0;padding:10px 12px;border-radius:8px;background:var(--forest-100);color:var(--forest-900);font-size:13px;";
+    notice.textContent=approve
+      ?tr("Processing approval and sending the invitation. Please do not close this page.","Aprovação em processamento. Estamos criando os vínculos e enviando o convite. Não feche esta página.","Procesando la aprobación y enviando la invitación. No cierre esta página.")
+      :tr("Processing your decision…","Processando sua decisão…","Procesando su decisión…");
+    btn.insertAdjacentElement("afterend",notice);
     try{
-      const result=await callEdgeFunction("portal-access-review",body);
+      await callEdgeFunction("portal-access-review",body);
       if(approve)await refreshStaffFromDb();
       openId=null;await reload();
       alert(approve?tr("Access approved. Invitation processed.","Acesso aprovado. Convite processado.","Acceso aprobado. Invitación procesada."):tr("Request rejected.","Solicitação recusada.","Solicitud rechazada."));
-    }catch(err){console.error(err);alert(err.message||"Unable to process request");btn.disabled=false;}
+    }catch(err){
+      console.error(err);
+      notice.textContent=tr("Processing failed. Please review the error and try again.","Não foi possível concluir. Confira o erro e tente novamente.","No se pudo completar. Revise el error e intente de nuevo.");
+      notice.style.background="#fff0ed";
+      alert(err.message||"Unable to process request");
+    }finally{
+      processing=false;
+      if(btn.isConnected){
+        btn.textContent=previousLabel;
+        btn.removeAttribute("aria-busy");
+      }
+      controls.forEach(control=>{if(control.isConnected)control.disabled=false;});
+      if(notice.isConnected && !notice.textContent.includes("failed") && !notice.textContent.includes("Não foi possível") && !notice.textContent.includes("No se pudo"))notice.remove();
+    }
   }
   function bindDirector(){
     const btn=document.getElementById("portalRequestsRefresh");if(!btn)return;
