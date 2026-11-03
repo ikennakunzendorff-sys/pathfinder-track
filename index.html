@@ -4,6 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#173f32" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Pathfinder Track" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
   <title>Pathfinder Track</title>
   <style>
 :root {
@@ -4402,14 +4409,11 @@ function signOut(){
       getValidAccessToken(null,false).catch(err=>console.warn('Session check failed.',err));
     }
   });
-    if('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(registrations=>{
-      registrations.forEach(registration=>registration.unregister());
-    }).catch(()=>{});
-  }
+
 })();
 
   </script>
   <script src="member-import.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>
