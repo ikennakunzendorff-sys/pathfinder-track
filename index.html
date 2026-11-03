@@ -2101,11 +2101,13 @@ function loginView() {
         <button class="btn btn-primary" type="submit">Sign in</button>
         <button class="btn btn-secondary" type="button" id="demoBtn">Preview demo</button>
         <div class="form-message" id="formMessage"></div>
-        <div class="login-note">MVP access is invitation-only. Pathfinder members do not need individual login accounts unless their club enables them later.</div>
+        <div class="login-note">Accounts are invitation-only. You may request limited viewing access; the Director must approve first.</div>
+        ${window.PTAccessRequests?window.PTAccessRequests.publicWidget():''}
       </form>
     </section>
   </div>`;
 
+  if(window.PTAccessRequests)window.PTAccessRequests.bindPublic();
   document.getElementById('demoBtn').onclick = () => { scoreCategories = structuredClone(defaultScoreCategories); state = structuredClone(demoState); route='dashboard'; renderApp(); };
   document.getElementById('loginForm').onsubmit = async (e) => {
     e.preventDefault();
@@ -2314,8 +2316,7 @@ function sidebar() {
     <nav class="nav">
       <button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂ Dashboard</button>
       ${canManageMeetings()?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓ Meeting</button>`:''}
-      <button class="${route==='members'?'active':''}" data-route="members">♙ Members</button>
-      <button class="${route==='classes'?'active':''}" data-route="classes">◫ Classes</button>
+      ${state.user.role!=='viewer'?`<button class="${route==='members'?'active':''}" data-route="members">♙ Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫ Classes</button>`:''}
       ${state.user.role==='director'?`<button class="${route==='units'?'active':''}" data-route="units">◇ Units</button>`:''}
       ${state.user.role==='director'?`<button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★ Scoreboard</button>`:''}
       ${state.user.role==='director'?`<button class="${route==='staff'?'active':''}" data-route="staff">♜ Staff</button>`:''}
@@ -2332,9 +2333,9 @@ function mobileTop(){ return `<div class="mobile-top">${brand()}<div style="disp
 function bottomNav(){
   const admin=state.user.role==='director';
   const meetingAccess=canManageMeetings();
-  const count=admin?10:(meetingAccess?4:3);
+  const count=admin?10:(state.user.role==='viewer'?1:(meetingAccess?4:3));
   const min=admin?'56px':'1fr';
-  return `<nav class="bottom-nav" style="grid-template-columns:repeat(${count},minmax(${min},1fr));"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button>${meetingAccess?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button>`:''}<button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★<br>Scores</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button><button class="${route==='reports'?'active':''}" data-route="reports">▤<br>Reports</button><button class="${route==='history'?'active':''}" data-route="history">◷<br>History</button><button class="${route==='settings'?'active':''}" data-route="settings">⚙<br>Settings</button>`:''}</nav>`;
+  return `<nav class="bottom-nav" style="grid-template-columns:repeat(${count},minmax(${min},1fr));"><button class="${route==='dashboard'?'active':''}" data-route="dashboard">⌂<br>Home</button>${meetingAccess?`<button class="${route==='meeting'?'active':''}" data-route="meeting">✓<br>Meeting</button>`:''}${state.user.role!=='viewer'?`<button class="${route==='members'?'active':''}" data-route="members">♙<br>Members</button><button class="${route==='classes'?'active':''}" data-route="classes">◫<br>Classes</button>`:''}${admin?`<button class="${route==='units'?'active':''}" data-route="units">◇<br>Units</button><button class="${route==='scoreboard'?'active':''}" data-route="scoreboard">★<br>Scores</button><button class="${route==='staff'?'active':''}" data-route="staff">♜<br>Staff</button><button class="${route==='reports'?'active':''}" data-route="reports">▤<br>Reports</button><button class="${route==='history'?'active':''}" data-route="history">◷<br>History</button><button class="${route==='settings'?'active':''}" data-route="settings">⚙<br>Settings</button>`:''}</nav>`;
 }
 
 function dashboardGreeting(){
@@ -2473,8 +2474,17 @@ function unitDashboardView() {
     </section>`;
 }
 
+function viewerDashboardView(){
+  const meetings=(state.meetings||[]).filter(m=>String(m.meeting_date)>=localISODate()).sort((a,b)=>String(a.meeting_date).localeCompare(String(b.meeting_date))).slice(0,8);
+  const meetingHtml=meetings.map(m=>`<div class="member-row"><div class="member-avatar">◷</div><div><strong>${esc(m.title||'Club meeting')}</strong><small>${esc(formatMeetingDate(m.meeting_date))} · ${esc(unitName(m.unit_id))}</small></div></div>`).join('');
+  const clubs=state.club||{};
+  return `${mobileTop()}<div class="director-dashboard"><div class="topbar"><div><div class="eyebrow">Read-only access</div><h1>Welcome, ${esc(state.user.full_name||'Viewer')}</h1><p>${esc(clubs.name||'Pathfinder Track')} · ${esc(clubs.location||'')}</p></div><div class="top-actions"><button class="btn btn-ghost" id="logoutBtn">Sign out</button></div></div>
+    <section class="card" style="padding:20px;margin:15px 0"><h3>Club overview</h3><p>${esc(state.clubYear?.label||'Club year not selected')} · ${(state.units||[]).filter(u=>u.active!==false).length} units</p><p class="form-hint">Basic viewer access includes club information and upcoming activities. Individual Pathfinder records, attendance and scores are restricted.</p></section>
+    <section class="card"><div class="card-head"><div><h3>Upcoming meetings and activities</h3><p>Schedule visible to approved club viewers.</p></div></div><div class="card-body member-list">${meetingHtml||'<div class="member-empty">No upcoming meetings scheduled.</div>'}</div></section>
+    <div class="mobile-staff-actions" style="display:block;margin-top:18px"><button class="btn btn-ghost" type="button" data-viewer-logout>Sign out</button></div></div>`;
+}
 function dashboardView() {
-  return state?.mode==='live' && state?.user?.role==='director' ? directorDashboardView() : unitDashboardView();
+  return state?.mode==='live' && state?.user?.role==='director' ? directorDashboardView() : (state?.mode==='live' && state?.user?.role==='viewer' ? viewerDashboardView() : unitDashboardView());
 }
 
 function membersView() {
@@ -3655,6 +3665,7 @@ function staffView(){
     <section class="card"><div class="card-head"><div><h3>Club leadership</h3><p>Access is separate from the person's ministry title.</p></div></div><div class="card-body">
       <div class="staff-directory">${staff.length?staff.map(staffRow).join(''):'<div class="member-empty">No staff profiles have been added yet.</div>'}</div>
     </div></section>
+    ${window.PTAccessRequests?window.PTAccessRequests.directorPanel():''}
     ${staffEditorModal()}
   </div>`;
 }
@@ -4154,6 +4165,8 @@ function renderApp() {
   app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():(route==='reports'?reportsView():(route==='history'?historyView():(route==='settings'?settingsView():dashboardView()))))))))}</main></div>${bottomNav()}`;
   bindNavigation();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
+  document.querySelectorAll('[data-viewer-logout]').forEach(btn=>btn.onclick=signOut);
+  if(route==='staff' && window.PTAccessRequests)window.PTAccessRequests.bindDirector();
   ['unitSelect','unitSelectMobile'].forEach(id=>{ const unitSelect=document.getElementById(id); if(unitSelect) unitSelect.onchange=async (e)=>{ try { await changeUnit(e.target.value); } catch(err){ console.error(err); alert(translateUiString(err.message || 'Unit could not be loaded.')); renderApp(); } }; });
   document.querySelectorAll('[data-presence]').forEach(btn=>btn.onclick=()=>togglePresence(btn.dataset.presence));
   document.querySelectorAll('[data-score]').forEach(btn=>btn.onclick=()=>toggleScore(btn.dataset.score,btn.dataset.key));
@@ -4225,6 +4238,7 @@ function renderApp() {
 function bindNavigation(){
   document.querySelectorAll('[data-route]').forEach(el=>el.onclick=async()=>{
     route=el.dataset.route;
+    if(state?.user?.role==='viewer' && route!=='dashboard')route='dashboard';
     renderApp();
     if(['dashboard','scoreboard','reports'].includes(route) && state?.mode==='live' && state?.user?.role==='director' && !state.scoreboardLoaded){
       try{ await loadScoreboardData(); renderApp(); }
@@ -4415,5 +4429,6 @@ function signOut(){
   </script>
   <script src="member-import.js"></script>
   <script src="pwa.js"></script>
+  <script src="access-requests.js"></script>
 </body>
 </html>
