@@ -3378,12 +3378,53 @@ function unitReportData(){
   return {title:'Unit report',subtitle:'Unit roster, attendance, class progress and accumulated scoring.',headers:['Unit','Active Pathfinders','Counselors','Meetings','Attendance','Class progress','Member points','Special points','Total points'],rows};
 }
 function memberReportData(){
-  const unitFilter=reportUnitFilter();
-  const byId=new Map((state.allMembers||[]).map(m=>[String(m.id),m]));
-  const rows=excellenceSnapshot().filter(x=>{ const m=byId.get(String(x.id)); return !unitFilter||String(m?.unit_id)===String(unitFilter); }).map(x=>[
-    x.name,x.unit,x.className,x.meetingCount,x.present+'/'+x.attendanceTotal,x.attendancePct+'%',x.earned+'/'+x.possible,x.scoreEfficiency+'%',x.classCompleted+'/'+x.classTotal,x.classPct+'%',x.eligible?x.excellence:'—',x.eligible?'Eligible':x.eligibilityReason
-  ]);
-  return {title:'Pathfinder report',subtitle:'Individual attendance, meeting scores, class progress and Excellence status.',headers:['Pathfinder','Unit','Class','Meeting opportunities','Presence','Attendance','Points','Efficiency','Class requirements','Class progress','Excellence','Status'],rows};
+  const unitFilter=reportUnitFilter(), meetings=reportMeetingsFiltered().filter(m=>(m.meeting_type||'regular')==='regular');
+  const maps=reportScoreMaps(), rows=[];
+  const year=reportSelectedYear();
+  const eligibleMembers=(state.allMembers||[]).filter(m=>m.active!==false&&(!unitFilter||String(m.unit_id)===String(unitFilter)));
+  const cfg=excellenceConfig();
+  for(const member of eligibleMembers){
+    const start=[year?.start_date||'0000-01-01',String(member.created_at||'').slice(0,10)].sort().pop();
+    const opportunities=meetings.filter(mt=>String(mt.unit_id)===String(member.unit_id)&&String(mt.meeting_date)>=start);
+    let earned=0,possible=0,present=0;
+    for(const mt of opportunities){
+      const scoreRows=maps.scoreMap.get(String(mt.id))||[];
+      const mine=scoreRows.filter(x=>String(x.member_id)===String(member.id));
+      const maxByMember=new Map();
+      for(const sr of scoreRows){const key=String(sr.member_id);maxByMember.set(key,(maxByMember.get(key)||0)+Number(sr.max_points_snapshot||0));}
+      earned+=mine.reduce((sum,x)=>sum+Number(x.points_awarded||0),0);
+      possible+=Math.max(0,...maxByMember.values());
+      if((maps.attendanceMap.get(String(mt.id))||[]).some(x=>String(x.member_id)===String(member.id)&&x.present===true))present++;
+    }
+    const attendance=opportunities.length?Math.round(present/opportunities.length*1000)/10:0;
+    const efficiency=possible?Math.round(earned/possible*1000)/10:0;
+    const progress=memberClassProgress(member);
+    const weighted=Math.round((efficiency*cfg.scoreWeight/100+attendance*cfg.attendanceWeight/100+progress.pct*cfg.classWeight/100)*10)/10;
+    const eligible=opportunities.length>=cfg.minMeetings&&attendance>=cfg.minAttendance&&possible>0;
+    const reason=opportunities.length<cfg.minMeetings?'Insufficient meetings':attendance<cfg.minAttendance?'Insufficient attendance':possible<=0?'No scoring': 'Eligible';
+    rows.push([member.full_name,unitName(member.unit_id),member.current_class_level_id?className(member.current_class_level_id):'No class',opportunities.length,present+'/'+opportunities.length,attendance+'%',earned+'/'+possible,efficiency+'%',progress.completed+'/'+progress.total,progress.pct+'%',eligible?weighted:'—',eligible?'Eligible':reason]);
+  }
+  rows.sort((x,y)=>x[0].localeCompare(y[0]));
+  return {title:'Pathfinder report',subtitle:'Attendance and scoring reflect the selected period. Class placement and progress reflect the current state, not a historical snapshot. Excellence figures are period estimates.',headers:['Pathfinder','Unit (current)','Class (current)','Meeting opportunities','Presence','Attendance','Points','Efficiency','Class requirements (current)','Class progress (current)','Excellence (estimate)','Status'],rows};
+}
+function individualReportData(){
+  const memberId=document.getElementById('reportMember')?.value||'';
+  const member=(state.allMembers||[]).find(m=>String(m.id)===String(memberId));
+  if(!member)return {title:'Individual Pathfinder report',subtitle:'Select a Pathfinder to view a detailed report.',headers:['Date','Meeting / event','Unit at meeting','Attendance','Points','Maximum possible','Special unit points'],rows:[]};
+  const maps=reportScoreMaps(),meetings=reportMeetingsFiltered().slice().sort((a,b)=>String(a.meeting_date).localeCompare(String(b.meeting_date)));
+  const rows=[];
+  for(const mt of meetings){
+    const scores=(maps.scoreMap.get(String(mt.id))||[]).filter(x=>String(x.member_id)===String(member.id));
+    const attendance=(maps.attendanceMap.get(String(mt.id))||[]).find(x=>String(x.member_id)===String(member.id));
+    // Historical membership is not stored separately; show meetings with actual recorded data.
+    if(!scores.length&&!attendance)continue;
+    const earned=scores.reduce((n,x)=>n+Number(x.points_awarded||0),0);
+    const possible=scores.reduce((n,x)=>n+Number(x.max_points_snapshot||0),0);
+    rows.push([mt.meeting_date,mt.title||'Club Meeting',unitName(mt.unit_id),attendance?(attendance.present?'Present':'Absent'):'Not recorded',scores.length?earned:'—',scores.length?possible:'—',Number(mt.unit_bonus_points||0)]);
+  }
+  const progress=memberClassProgress(member);
+  const totalPoints=rows.reduce((n,r)=>n+(typeof r[4]==='number'?r[4]:0),0);
+  return {title:'Individual report — '+member.full_name,subtitle:'Selected-year attendance and saved scores. Current class: '+(member.current_class_level_id?className(member.current_class_level_id):'Not assigned')+' · Core progress now: '+progress.completed+'/'+progress.total+' ('+progress.pct+'%). Special unit points are shown for context, not awarded individually. Meetings without a personal record are omitted.',headers:['Date','Meeting / event','Unit at meeting','Attendance','Points earned','Maximum possible','Unit bonus (not individual)'],rows};
 }
 function classReportData(){
   const unitFilter=reportUnitFilter();
@@ -3408,14 +3449,15 @@ function meetingReportData(){
 function reportSummaryCards(data){
   const type=document.getElementById('reportType')?.value||'units', rows=data.rows||[];
   if(type==='units') return [['Units',rows.length],['Pathfinders',rows.reduce((s,r)=>s+Number(r[1]||0),0)],['Meetings',rows.reduce((s,r)=>s+Number(r[3]||0),0)],['Total points',rows.reduce((s,r)=>s+Number(r[8]||0),0)]];
-  if(type==='members') return [['Pathfinders',rows.length],['Eligible',rows.filter(r=>r[11]==='Eligible').length],['Avg. efficiency',rows.length?Math.round(rows.reduce((s,r)=>s+Number(String(r[7]).replace('%','')||0),0)/rows.length*10)/10+'%':'0%'],['Year',state.clubYear?.label||'—']];
-  if(type==='classes') return [['Classes',rows.length],['Pathfinders',rows.reduce((s,r)=>s+Number(r[1]||0),0)],['Avg. progress',rows.length?Math.round(rows.reduce((s,r)=>s+Number(String(r[3]).replace('%','')||0),0)/rows.length)+'%':'0%'],['Year',state.clubYear?.label||'—']];
-  return [['Meetings',rows.length],['Special events',rows.filter(r=>r[3]==='Special event').length],['Total points',rows.reduce((s,r)=>s+Number(r[8]||0),0)],['Year',state.clubYear?.label||'—']];
+  if(type==='members') return [['Pathfinders',rows.length],['Eligible',rows.filter(r=>r[11]==='Eligible').length],['Avg. efficiency',rows.length?Math.round(rows.reduce((s,r)=>s+Number(String(r[7]).replace('%','')||0),0)/rows.length*10)/10+'%':'0%'],['Year',reportSelectedYear()?.label||'—']];
+  if(type==='individual') return [['Recorded meetings',rows.length],['Member points',rows.reduce((n,r)=>n+(typeof r[4]==='number'?r[4]:0),0)],['Present',rows.filter(r=>r[3]==='Present').length],['Club year',reportSelectedYear()?.label||'—']];
+  if(type==='classes') return [['Classes',rows.length],['Pathfinders',rows.reduce((s,r)=>s+Number(r[1]||0),0)],['Avg. progress',rows.length?Math.round(rows.reduce((s,r)=>s+Number(String(r[3]).replace('%','')||0),0)/rows.length)+'%':'0%'],['Year',reportSelectedYear()?.label||'—']];
+  return [['Meetings',rows.length],['Special events',rows.filter(r=>r[3]==='Special event').length],['Total points',rows.reduce((s,r)=>s+Number(r[8]||0),0)],['Year',reportSelectedYear()?.label||'—']];
 }
 function renderReportOutput(){
   const host=document.getElementById('reportOutput'); if(!host) return;
   const data=currentReportData(), summary=reportSummaryCards(data), range=reportDateRange(), unit=reportUnitFilter();
-  const filters=[state.clubYear?.label||'',unit?unitName(unit):'All units',range.from&&range.to?formatMeetingDate(range.from)+' – '+formatMeetingDate(range.to):''].filter(Boolean).join(' · ');
+  const filters=[reportSelectedYear()?.label||'',unit?unitName(unit):'All units',range.from&&range.to?formatMeetingDate(range.from)+' – '+formatMeetingDate(range.to):''].filter(Boolean).join(' · ');
   host.innerHTML=`<div class="report-print-meta"><strong>${esc(state.club.name)}</strong><br>${esc(filters)}</div><div class="report-heading"><h2>${esc(data.title)}</h2><p>${esc(data.subtitle)} · ${esc(filters)}</p></div><section class="report-summary">${summary.map(x=>`<div class="mini-stat"><span>${esc(x[0])}</span><strong>${esc(x[1])}</strong></div>`).join('')}</section><div class="report-table-wrap"><table class="report-table"><thead><tr>${data.headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${data.rows.length?data.rows.map(row=>`<tr>${row.map(cell=>`<td>${esc(cell)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${data.headers.length}" style="text-align:center;color:var(--muted);padding:28px">No data for the selected filters.</td></tr>`}</tbody></table></div>`;
 }
 function reportDownloadCsv(){
