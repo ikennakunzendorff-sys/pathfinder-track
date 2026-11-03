@@ -85,7 +85,7 @@
     if(!importRows.length){host.innerHTML="";return;}
     var table='<div class="form-hint">'+s.ready+' '+t.ready+' · '+s.duplicate+' '+t.duplicate+' · '+s.invalid+' '+t.invalid+'</div>'+
     '<table class="report-table" style="min-width:650px;width:100%"><thead><tr><th>'+t.row+'</th><th>'+t.name+'</th><th>'+t.grade+'</th><th>'+t.unit+'</th><th>'+t.level+'</th><th>'+t.status+'</th></tr></thead><tbody>';
-    importRows.forEach(function(x){table+='<tr><td>'+x.line+'</td><td>'+html(x.name)+'</td><td>'+html(x.grade)+'</td><td>'+html(x.unit_label)+'</td><td>'+html(x.class_label||"—")+'</td><td>'+html(x.kind==="ready"?t.ready:(x.kind==="duplicate"?t.duplicate:t.invalid))+(x.reason?' · '+html(x.reason):"")+'</td></tr>';});
+    importRows.forEach(function(x){table+='<tr><td>'+x.line+'</td><td>'+html(x.name)+'</td><td>'+html(x.grade)+'</td><td>'+html(x.unit_label)+'</td><td>'+html(x.class_label||"—")+'</td><td>'+html(x.kind==="ready"?t.ready:(x.kind==="saved"?"Saved":(x.kind==="duplicate"?t.duplicate:t.invalid)))+(x.reason?' · '+html(x.reason):"")+'</td></tr>';});
     host.innerHTML=table+'</tbody></table>';
   }
   function show(){if(state?.mode!=="live" || state?.user?.role!=="director")return;var el=document.getElementById("bulkImportPanel");if(el){el.hidden=false;el.scrollIntoView({behavior:"smooth",block:"start"});preview();}}
@@ -100,7 +100,7 @@
     if(window._ptXlsxPromise)return window._ptXlsxPromise;
     window._ptXlsxPromise=new Promise(function(resolve,reject){
       var script=document.createElement("script");
-      script.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+      script.src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
       script.onload=function(){window.XLSX&&window.XLSX.read?resolve():reject(Error("Excel parser did not load"));};
       script.onerror=function(){reject(Error("Excel reader unavailable. Export as CSV and retry."));};
       document.head.appendChild(script);
