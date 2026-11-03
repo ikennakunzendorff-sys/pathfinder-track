@@ -691,6 +691,7 @@ button { cursor: pointer; }
 <body>
   <div id="app"></div>
   <script src="access-requests.js"></script>
+  <script src="portal.js"></script>
   <script>
 const SUPABASE_URL = 'https://ddusmreyrqumzlbpdanz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tr1_Lur6n-7yq_ApNvyVxg_IysPKFto';
@@ -2180,6 +2181,10 @@ async function loadAuthenticatedState(token) {
   if(!profile) throw new Error('Your Pathfinder Track profile is not configured yet.');
   if(profile.active===false) throw new Error('Your Pathfinder Track access is inactive. Contact your club director.');
   if(!profile.club_id) throw new Error('Your account is not assigned to a club yet.');
+  if(['parent','pathfinder'].includes(profile.role)){
+    await window.PTPortal.load(profile,activeToken);
+    return;
+  }
 
   const today = localISODate();
   const [clubs, units, members, categories, meetings, clubYears, clubSettingsRows, classLevels, requirements, requirementStatuses, staffProfiles, staffClassLinks] = await Promise.all([
@@ -3655,7 +3660,7 @@ function staffTitle(person){ return person.position_title || (person.role==='dir
 
 function staffView(){
   if(state.mode!=='live' || state.user.role!=='director') return `${mobileTop()}<div class="readonly-note">Staff management is available to the club director.</div>`;
-  const staff=(state.staff||[]).slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||''));
+  const staff=(state.staff||[]).filter(p=>['director','instructor','viewer'].includes(p.role)).slice().sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||''));
   const active=staff.filter(x=>x.active!==false).length;
   const admins=staff.filter(x=>x.active!==false&&x.role==='director').length;
   const instructors=staff.filter(x=>x.active!==false&&x.role==='instructor').length;
@@ -3716,6 +3721,7 @@ function updateStaffScopeUI(){
 function openStaffEditor(id=null){
   const modal=document.getElementById('staffModal'); if(!modal) return;
   const p=id?(state.staff||[]).find(x=>String(x.id)===String(id)):null;
+  if(p && ['parent','pathfinder'].includes(p.role))return;
   const self=p && String(p.id)===String(state.user.id);
   document.getElementById('staffModalTitle').textContent=p?'Edit staff member':'Add staff member';
   document.getElementById('staffId').value=p?.id||'';
@@ -3755,6 +3761,7 @@ async function saveStaffForm(e){
   const email=document.getElementById('staffEmail').value.trim().toLowerCase();
   const positionTitle=document.getElementById('staffTitle').value.trim();
   const current=(state.staff||[]).find(x=>String(x.id)===String(id));
+  if(current && ['parent','pathfinder'].includes(current.role))return;
   const isSelf=current && String(current.id)===String(state.user.id);
   const role=isSelf?'director':document.getElementById('staffRole').value;
   const unitId=role==='instructor'?(document.getElementById('staffUnit').value||null):null;
@@ -4162,6 +4169,12 @@ function scoreCard(m) {
 
 function renderApp() {
   if(!state) return loginView();
+  if(window.PTPortal?.isPortalRole()){
+    route='dashboard';
+    app.innerHTML=`<div class="app-layout">${window.PTPortal.nav()}<main class="main">${window.PTPortal.view()}</main></div>${window.PTPortal.mobileNav()}`;
+    window.PTPortal.bind();
+    return;
+  }
   if(route==='meeting' && !canManageMeetings()) route='classes';
   app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():(route==='reports'?reportsView():(route==='history'?historyView():(route==='settings'?settingsView():dashboardView()))))))))}</main></div>${bottomNav()}`;
   bindNavigation();
