@@ -679,7 +679,7 @@ button { cursor: pointer; }
 @media (max-width:960px){ .director-grid { grid-template-columns:1fr; } .director-kpis { grid-template-columns:1fr 1fr; } }
 @media (max-width:650px){ .director-hero { grid-template-columns:1fr; padding:20px; } .director-hero-meta { justify-content:flex-start; } .director-hero h1 { font-size:28px; } .director-kpis { grid-template-columns:1fr 1fr; } .director-kpi { padding:14px; } .director-kpi strong { font-size:23px; } .quick-action-grid { grid-template-columns:1fr 1fr; } }
 
-  </style>
+  @media (max-width:760px){.mobile-unit-picker.bulk-import-mobile-actions{display:flex;gap:8px;flex-wrap:wrap}}\n</style>
 </head>
 <body>
   <div id="app"></div>
@@ -2479,7 +2479,7 @@ function membersView() {
   const classCount = new Set(source.filter(m=>m.active!==false && m.current_class_level_id).map(m=>String(m.current_class_level_id))).size;
   return `${mobileTop()}<div class="members-page">
     <div class="topbar"><div><h1>Members</h1><p>${esc(state.club.name)} · Pathfinder roster</p></div><div class="top-actions">${editable?'<button class="btn btn-ghost" id="bulkImportOpen" style="width:auto">⇧ Import CSV / Excel</button><button class="btn btn-primary" id="addMemberBtn" style="width:auto">+ Add Pathfinder</button>':''}</div></div>
-    ${editable?'<div class="mobile-unit-picker" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" id="bulkImportOpenMobile" style="flex:1">⇧ Import CSV / Excel</button><button class="btn btn-primary" id="addMemberBtnMobile" style="flex:1">+ Add Pathfinder</button></div>':''}
+    ${editable?'<div class="mobile-unit-picker bulk-import-mobile-actions"><button class="btn btn-ghost" id="bulkImportOpenMobile" style="flex:1">⇧ Import CSV / Excel</button><button class="btn btn-primary" id="addMemberBtnMobile" style="flex:1">+ Add Pathfinder</button></div>':''}
     ${!editable?'<div class="readonly-note">You can view the members allowed by your role. Member registration and editing are available to the club director.</div>':''}
     ${editable && window.PTMemberImport ? window.PTMemberImport.panel() : ''}
     <section class="members-summary">
