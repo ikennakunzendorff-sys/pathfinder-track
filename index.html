@@ -690,6 +690,7 @@ button { cursor: pointer; }
 </head>
 <body>
   <div id="app"></div>
+  <script src="access-requests.js"></script>
   <script>
 const SUPABASE_URL = 'https://ddusmreyrqumzlbpdanz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tr1_Lur6n-7yq_ApNvyVxg_IysPKFto';
@@ -2102,8 +2103,8 @@ function loginView() {
         <button class="btn btn-secondary" type="button" id="demoBtn">Preview demo</button>
         <div class="form-message" id="formMessage"></div>
         <div class="login-note">Accounts are invitation-only. You may request limited viewing access; the Director must approve first.</div>
-        ${window.PTAccessRequests?window.PTAccessRequests.publicWidget():''}
       </form>
+      ${window.PTAccessRequests?window.PTAccessRequests.publicWidget():''}
     </section>
   </div>`;
 
@@ -4429,6 +4430,5 @@ function signOut(){
   </script>
   <script src="member-import.js"></script>
   <script src="pwa.js"></script>
-  <script src="access-requests.js"></script>
 </body>
 </html>
