@@ -3298,27 +3298,69 @@ async function saveExcellenceSettings(e){
   }catch(err){ console.error(err); setSettingsMessage("excellenceSettingsMessage",err.message||"Excellence settings could not be saved.",true); }
 }
 
+function reportSelectedYear(){
+  const id=document.getElementById('reportYear')?.value || state.clubYear?.id || '';
+  return (state.clubYears||[]).find(y=>String(y.id)===String(id)) || state.clubYear || null;
+}
+function reportSource(){
+  const year=reportSelectedYear();
+  if(!year) return {meetings:[],scores:[],attendance:[]};
+  const selected=String(year.id), active=String(state.clubYear?.id||'');
+  if(selected===active) return {meetings:state.scoreboardMeetings||[],scores:state.scoreboardScores||[],attendance:state.scoreboardAttendance||[]};
+  if(state.reportArchive?.yearId===selected) return state.reportArchive;
+  return {meetings:[],scores:[],attendance:[]};
+}
+async function loadReportYearData(year){
+  if(!year || String(year.id)===String(state.clubYear?.id)) return;
+  if(state.reportArchive?.yearId===String(year.id)) return;
+  const query='meetings?club_id=eq.'+encodeURIComponent(state.user.club_id)
+    +'&meeting_date=gte.'+encodeURIComponent(year.start_date)
+    +'&meeting_date=lte.'+encodeURIComponent(year.end_date)
+    +'&select=id,meeting_date,title,unit_id,club_year_id,meeting_type,unit_bonus_points&order=meeting_date.asc';
+  const meetings=await sb(query,state.token),scores=[],attendance=[];
+  const ids=meetings.map(m=>String(m.id));
+  for(let i=0;i<ids.length;i+=40){
+    const chunk=ids.slice(i,i+40).join(',');
+    const [sr,ar]=await Promise.all([
+      sb('meeting_scores?meeting_id=in.('+chunk+')&select=meeting_id,member_id,category_id,points_awarded,max_points_snapshot',state.token),
+      sb('attendance?meeting_id=in.('+chunk+')&select=meeting_id,member_id,present',state.token)
+    ]);
+    scores.push(...sr);attendance.push(...ar);
+  }
+  state.reportArchive={yearId:String(year.id),meetings,scores,attendance};
+}
+async function changeReportYear(){
+  const year=reportSelectedYear(),from=document.getElementById('reportFrom'),to=document.getElementById('reportTo');
+  if(from)from.value=year?.start_date||'';
+  if(to)to.value=year?.end_date||'';
+  const btn=document.getElementById('reportPrintBtn');if(btn)btn.disabled=true;
+  const host=document.getElementById('reportOutput');if(host)host.innerHTML='<div class="member-empty">Loading selected club year…</div>';
+  try{await loadReportYearData(year);renderReportOutput();}
+  catch(err){console.error(err);if(host)host.innerHTML='<div class="readonly-note">'+esc(err.message||'Historical reports could not be loaded.')+'</div>';}
+  finally{if(btn)btn.disabled=false;}
+}
 function reportDateRange(){
+  const year=reportSelectedYear();
   return {
-    from:document.getElementById('reportFrom')?.value || state.clubYear?.start_date || '',
-    to:document.getElementById('reportTo')?.value || state.clubYear?.end_date || localISODate()
+    from:document.getElementById('reportFrom')?.value || year?.start_date || '',
+    to:document.getElementById('reportTo')?.value || year?.end_date || localISODate()
   };
 }
 function reportUnitFilter(){ return document.getElementById('reportUnit')?.value || ''; }
 function reportMeetingsFiltered(){
   const {from,to}=reportDateRange(), unit=reportUnitFilter();
-  return (state.scoreboardMeetings||[]).filter(m=>(!from||String(m.meeting_date)>=from)&&(!to||String(m.meeting_date)<=to)&&(!unit||String(m.unit_id)===String(unit)));
+  return reportSource().meetings.filter(m=>(!from||String(m.meeting_date)>=from)&&(!to||String(m.meeting_date)<=to)&&(!unit||String(m.unit_id)===String(unit)));
 }
 function reportScoreMaps(){
   const scoreMap=new Map(), attendanceMap=new Map();
-  for(const row of state.scoreboardScores||[]){ const k=String(row.meeting_id); if(!scoreMap.has(k)) scoreMap.set(k,[]); scoreMap.get(k).push(row); }
-  for(const row of state.scoreboardAttendance||[]){ const k=String(row.meeting_id); if(!attendanceMap.has(k)) attendanceMap.set(k,[]); attendanceMap.get(k).push(row); }
+  for(const row of reportSource().scores){ const k=String(row.meeting_id); if(!scoreMap.has(k)) scoreMap.set(k,[]); scoreMap.get(k).push(row); }
+  for(const row of reportSource().attendance){ const k=String(row.meeting_id); if(!attendanceMap.has(k)) attendanceMap.set(k,[]); attendanceMap.get(k).push(row); }
   return {scoreMap,attendanceMap};
 }
-function reportCsvEscape(v){ const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function reportCsvEscape(v){let s=String(v??'');if(/^[\s]*[=+@]/.test(s)||(/^[\s]*-/.test(s)&&!/^\s*-\d+(\.\d+)?$/.test(s)))s="'"+s;return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
 function currentReportData(){
   const type=document.getElementById('reportType')?.value||'units';
-  return type==='members'?memberReportData():type==='classes'?classReportData():type==='meetings'?meetingReportData():unitReportData();
+  return type==='individual'?individualReportData():type==='members'?memberReportData():type==='classes'?classReportData():type==='meetings'?meetingReportData():unitReportData();
 }
 function unitReportData(){
   const unitFilter=reportUnitFilter(), meetings=reportMeetingsFiltered(), maps=reportScoreMaps();
