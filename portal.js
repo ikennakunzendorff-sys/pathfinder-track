@@ -1,34 +1,37 @@
-/* Pathfinder Track — Phase 1 parent/pathfinder portal: linked-member read-only dashboard. */
+/* Pathfinder Track — Phase 2 read-only family and Pathfinder progress portal. */
 (function(){
  "use strict";
  function h(x){return esc(String(x??""));}
  function isPortalRole(){return state?.mode==="live"&&["parent","pathfinder"].includes(state.user?.role);}
  async function load(profile,token){
    const enc=encodeURIComponent(profile.club_id);
-   const [clubs,units,years,links,classLevels,requirements]=await Promise.all([
+   const [clubs,units,years,links,classLevels,requirements,settings]=await Promise.all([
      sb("clubs?id=eq."+enc+"&select=id,name,location",token),
      sb("units?club_id=eq."+enc+"&select=id,name,active&order=name",token),
      sb("club_years?club_id=eq."+enc+"&select=id,label,start_date,end_date,active&order=start_date.desc",token),
      sb("portal_member_links?user_id=eq."+encodeURIComponent(profile.id)+"&active=eq.true&select=id,user_id,member_id,link_type,active",token),
      sb("class_levels?select=id,name,order_index&order=order_index",token),
-     sb("requirements?select=id,class_level_id,code,title,is_advanced&order=sort_index",token)
+     sb("requirements?select=id,class_level_id,code,title,description,category,is_advanced,sort_index&order=sort_index",token),
+     sb("club_settings?club_id=eq."+enc+"&select=excellence_score_weight,excellence_attendance_weight,excellence_class_weight,excellence_min_meetings,excellence_min_attendance",token)
    ]);
    const ids=links.map(x=>x.member_id);
    const filter=ids.length?"&id=in.("+ids.join(",")+")":"&id=eq.00000000-0000-0000-0000-000000000000";
-   const [members,statuses,attendance,scores,meetings]=await Promise.all([
+   const [members,statuses,attendance,scores,meetings,maxima]=await Promise.all([
      sb("members?club_id=eq."+enc+filter+"&select=id,full_name,school_grade,current_class_level_id,unit_id,active,created_at,class_levels(name)&order=full_name",token),
      ids.length?sb("member_requirement_status?member_id=in.("+ids.join(",")+")&select=member_id,requirement_id,status,completed_at",token):Promise.resolve([]),
      ids.length?sb("attendance?member_id=in.("+ids.join(",")+")&select=meeting_id,member_id,present",token):Promise.resolve([]),
      ids.length?sb("meeting_scores?member_id=in.("+ids.join(",")+")&select=meeting_id,member_id,points_awarded,max_points_snapshot",token):Promise.resolve([]),
-     ids.length?sb("meetings?club_id=eq."+enc+"&select=id,meeting_date,title,unit_id,club_year_id,meeting_type&order=meeting_date.desc&limit=500",token):Promise.resolve([])
+     ids.length?sb("meetings?club_id=eq."+enc+"&select=id,meeting_date,title,unit_id,club_year_id,meeting_type&order=meeting_date.desc&limit=500",token):Promise.resolve([]),
+     ids.length?Promise.all(ids.map(id=>sb("rpc/portal_meeting_maxima?target_member_id="+encodeURIComponent(id),token))):Promise.resolve([])
    ]);
    const own=new Set(ids.map(String));
    const verified=members.filter(m=>own.has(String(m.id))&&m.active!==false);
    state={
      mode:"live",token:readAuthSession()?.access_token||token,user:profile,
      club:clubs[0]||{name:"Pathfinder Track"},units,clubYears:years,
-     clubYear:years.find(y=>y.active)||null,
+     clubYear:years.find(y=>y.active)||null,portalSettings:settings[0]||null,
      allMembers:verified,members:[],portalLinks:links,portalAttendance:attendance,
+     portalMaxima:Object.fromEntries(ids.map((id,i)=>[id,maxima[i]||[]])),
      portalScores:scores,portalSelectedMemberId:verified[0]?.id||null,
      classLevels,requirements,requirementStatuses:statuses,meetings,
      categories:[],staff:[],staffClassLinks:[],auditLogs:[],scoreboardMeetings:[],
@@ -49,35 +52,106 @@
       '<p>O Director precisa verificar e vincular seu cadastro antes que você possa consultar informações individuais.</p></section><button class="btn btn-ghost" type="button" data-portal-logout style="width:auto;margin-top:15px">Sair</button></div>';
    const id=String(person.id);
    const statuses=(state.requirementStatuses||[]).filter(x=>String(x.member_id)===id);
-   const classReqs=(state.requirements||[]).filter(r=>String(r.class_level_id)===String(person.current_class_level_id)&&!r.is_advanced);
-   const completed=new Set(statuses.filter(x=>x.status==="completed").map(x=>String(x.requirement_id)));
+   const classReqs=(state.requirements||[]).filter(r=>String(r.class_level_id)===String(person.current_class_level_id)&&!r.is_advanced).sort((a,b)=>(a.sort_index||0)-(b.sort_index||0));
+   const completed=new Set(statuses.filter(x=>x.status==="completed"||x.completed_at).map(x=>String(x.requirement_id)));
    const done=classReqs.filter(x=>completed.has(String(x.id))).length;
    const possible=classReqs.length,pct=possible?Math.round(100*done/possible):0;
    const scores=(state.portalScores||[]).filter(x=>String(x.member_id)===id);
    const earned=scores.reduce((sum,r)=>sum+Number(r.points_awarded||0),0);
    const maximum=scores.reduce((sum,r)=>sum+Number(r.max_points_snapshot||0),0);
    const attend=(state.portalAttendance||[]).filter(x=>String(x.member_id)===id);
-   const present=attend.filter(x=>x.present===true).length;
-   const attPct=attend.length?Math.round(100*present/attend.length):0;
+   const index=new Map(attend.map(x=>[String(x.meeting_id),x]));
+   const yearStart=String(state.clubYear?.start_date||'0000-01-01');
+   const memberStart=String(person.created_at||yearStart).slice(0,10);
+   const effectiveStart=memberStart>yearStart?memberStart:yearStart;
+   const opportunities=(state.meetings||[]).filter(m=>
+     String(m.unit_id)===String(person.unit_id)
+     && String(m.meeting_type||'regular')==='regular'
+     && String(m.meeting_date)>=effectiveStart
+     && (!state.clubYear?.end_date||String(m.meeting_date)<=String(state.clubYear.end_date))
+   );
+   const present=opportunities.filter(m=>index.get(String(m.id))?.present===true).length;
+   const attPct=opportunities.length?Math.round(1000*present/opportunities.length)/10:0;
+   const scoreRows=(state.portalScores||[]).filter(x=>String(x.member_id)===id);
+   const earnedByMeeting=new Map(),individualMaximum=new Map();
+   for(const row of scoreRows){
+     const key=String(row.meeting_id);
+     earnedByMeeting.set(key,(earnedByMeeting.get(key)||0)+Number(row.points_awarded||0));
+     individualMaximum.set(key,(individualMaximum.get(key)||0)+Number(row.max_points_snapshot||0));
+   }
+   const possibleByMeeting=new Map((state.portalMaxima?.[id]||[]).map(x=>[String(x.meeting_id),Number(x.possible||0)]));
+   const regularEarned=opportunities.reduce((sum,m)=>sum+(earnedByMeeting.get(String(m.id))||0),0);
+   const regularPossible=opportunities.reduce((sum,m)=>sum+(possibleByMeeting.get(String(m.id))||0),0);
+   const efficiency=regularPossible?Math.round(1000*regularEarned/regularPossible)/10:0;
+   const cfg=state.portalSettings||{};
+   const weightScore=Number(cfg.excellence_score_weight??50);
+   const weightAttendance=Number(cfg.excellence_attendance_weight??30);
+   const weightClass=Number(cfg.excellence_class_weight??20);
+   const minMeetings=Number(cfg.excellence_min_meetings??3);
+   const minAttendance=Number(cfg.excellence_min_attendance??60);
+   const excellence=Math.round((efficiency*weightScore/100+attPct*weightAttendance/100+pct*weightClass/100)*10)/10;
+   const eligible=opportunities.length>=minMeetings&&attPct>=minAttendance&&regularPossible>0;
+   const eligibilityReason=opportunities.length<minMeetings
+     ?'Faltam '+(minMeetings-opportunities.length)+' oportunidade(s) de reunião regular'
+     :attPct<minAttendance?'Frequência abaixo de '+minAttendance+'%'
+     :!regularPossible?'Pontuação ainda não lançada':'Elegível';
    const meetingIndex=new Map((state.meetings||[]).map(m=>[String(m.id),m]));
-   const latest=attend.slice().sort((a,b)=>String(meetingIndex.get(String(b.meeting_id))?.meeting_date||"").localeCompare(String(meetingIndex.get(String(a.meeting_id))?.meeting_date||""))).slice(0,6).map(x=>{
-      const meeting=meetingIndex.get(String(x.meeting_id));
-      const date=meeting?.meeting_date||"—";
-      return '<div class="member-row"><div><strong>'+h(meeting?.title||"Reunião")+'</strong><small>'+h(date)+'</small></div><span class="status-pill">'+(x.present?"Presente":"Ausente")+'</span></div>';
-   }).join("");
-   return '<div class="director-dashboard">'+header()+
-     choose+
+   const latest=Array.from(new Set([...opportunities.map(m=>String(m.id)),...attend.map(a=>String(a.meeting_id))]))
+     .map(meetingId=>meetingIndex.get(meetingId)).filter(Boolean)
+     .sort((a,b)=>String(b.meeting_date).localeCompare(String(a.meeting_date))).slice(0,10)
+     .map(meeting=>{
+       const marked=index.get(String(meeting.id));
+       const ownPoints=earnedByMeeting.get(String(meeting.id))||0;
+       const maxPoints=individualMaximum.get(String(meeting.id))||0;
+       const note=marked?(marked.present?'Presente':'Ausente'):'Não registrado';
+       return '<div class="member-row" style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><strong>'+
+         h(meeting.title||'Reunião')+'</strong><small>'+h(meeting.meeting_date)+' · '+h(meeting.meeting_type||'regular')+
+         '</small></div><div style="text-align:right"><strong>'+h(note)+'</strong><small>'+
+         (maxPoints?ownPoints+' / '+maxPoints+' pts':'Sem pontuação individual')+'</small></div></div>';
+     }).join('');
+   const progressRows=(state.requirements||[]).filter(r=>String(r.class_level_id)===String(person.current_class_level_id))
+     .sort((a,b)=>Number(a.is_advanced)-Number(b.is_advanced)||(a.sort_index||0)-(b.sort_index||0));
+   const classItems=progressRows.map(req=>{
+     const status=statuses.find(x=>String(x.requirement_id)===String(req.id));
+     const doneReq=status?.status==='completed'||!!status?.completed_at;
+     const inProgress=!doneReq&&status?.status==='in_progress';
+     return '<div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:start">'+
+       '<span aria-hidden="true" style="font-size:18px">'+(doneReq?'✓':inProgress?'◐':'○')+'</span><div style="min-width:0;flex:1"><strong>'+
+       h(req.code?req.code+' — '+req.title:req.title)+'</strong><small style="display:block">'+
+       h(req.category||'Requisitos')+(req.is_advanced?' · Avançado':' · Regular')+'</small>'+
+       (req.description?'<p class="form-hint">'+h(req.description)+'</p>':'')+'</div><small>'+
+       (doneReq?'Concluído':inProgress?'Em andamento':'Pendente')+'</small></div>';
+   }).join('');
+   const basicPending=classReqs.filter(x=>!completed.has(String(x.id))).length;
+   const advancedReqs=progressRows.filter(r=>r.is_advanced);
+   const advancedDone=advancedReqs.filter(r=>completed.has(String(r.id))).length;
+   return '<div class="director-dashboard">'+header()+choose+
      '<section class="card" style="padding:20px;margin-top:14px"><div class="eyebrow">Meu Progresso · Somente leitura</div><h2>'+h(person.full_name)+'</h2><p>'+
-       h(person.current_class_level_id?(person.class_levels?.name||"Classe atribuída"):"Sem classe atribuída")+' · '+h((state.units||[]).find(u=>u.id===person.unit_id)?.name||"Sem unidade")+
-     '</p></section>'+
+     h(person.current_class_level_id?(person.class_levels?.name||'Classe atribuída'):'Sem classe atribuída')+' · '+
+     h((state.units||[]).find(u=>u.id===person.unit_id)?.name||'Sem unidade')+'</p></section>'+
      '<section class="director-kpis" style="margin-top:14px">'+
-       '<div class="director-kpi"><span>Progresso da classe</span><strong>'+pct+'%</strong><small>'+done+' / '+possible+' requisitos básicos</small></div>'+
-       '<div class="director-kpi"><span>Presença registrada</span><strong>'+attPct+'%</strong><small>'+present+' / '+attend.length+' registros</small></div>'+
-       '<div class="director-kpi"><span>Pontuação individual</span><strong>'+earned+'</strong><small>'+maximum+' pontos possíveis salvos</small></div>'+
-     '</section>'+
-     '<section class="card" style="margin-top:14px"><div class="card-head"><div><h3>Minhas últimas reuniões</h3><p>Somente reuniões com presença individual registrada.</p></div></div><div class="card-body">'+(latest||'<div class="member-empty">Nenhuma presença registrada.</div>')+'</div></section>'+
-     '<section class="card" style="margin-top:14px;padding:20px"><h3>Biblioteca de Classes</h3><p>Em desenvolvimento. Futuramente, atividades e evidências poderão ser enviadas para avaliação do instrutor.</p></section>'+
-     '<p class="form-hint" style="margin-top:14px">Os resultados são somente para consulta e podem depender do lançamento das reuniões e requisitos pela liderança. Não é possível alterar requisitos nem pontuações por este portal.</p>'+
+     '<div class="director-kpi"><span>Progresso da classe</span><strong>'+pct+'%</strong><small>'+
+       done+' / '+possible+' básicos · '+basicPending+' pendentes</small></div>'+
+     '<div class="director-kpi"><span>Frequência nas reuniões regulares</span><strong>'+attPct+'%</strong><small>'+
+       present+' / '+opportunities.length+' oportunidades</small></div>'+
+     '<div class="director-kpi"><span>Eficiência de pontuação</span><strong>'+efficiency+'%</strong><small>'+
+       regularEarned+' / '+regularPossible+' pontos possíveis</small></div></section>'+
+     '<section class="card" style="padding:20px;margin-top:14px"><h3>Desbravador Excelência</h3><div class="eyebrow">'+
+       (eligible?'Elegível para classificação':'Em qualificação')+'</div>'+
+       '<h2 style="margin:10px 0">'+(eligible?excellence.toFixed(1)+' / 100':'—')+'</h2>'+
+       '<p>'+(eligible?'Pontuação calculada pelos critérios da diretoria.':h(eligibilityReason))+'</p>'+
+       '<p class="form-hint">Composição: '+weightScore+'% pontuação, '+weightAttendance+
+       '% frequência, '+weightClass+'% requisitos básicos. Elegibilidade: '+minMeetings+
+       ' oportunidades e '+minAttendance+'% de frequência mínima. Eventos especiais excluídos.</p></section>'+
+     '<section class="card" style="margin-top:14px"><div class="card-head"><div><h3>Requisitos da classe</h3><p>'+
+       done+' concluídos, '+basicPending+' pendentes · Avançados: '+advancedDone+' / '+advancedReqs.length+
+       '</p></div></div><div class="card-body">'+(classItems||'<div class="member-empty">Nenhum requisito cadastrado para esta classe.</div>')+'</div></section>'+
+     '<section class="card" style="margin-top:14px"><div class="card-head"><div><h3>Histórico de reuniões</h3>'+
+       '<p>Reuniões regulares do ano, com presença e pontuação lançadas; eventos especiais aparecem quando houver registro individual.</p>'+
+     '</div></div><div class="card-body">'+(latest||'<div class="member-empty">Nenhuma reunião disponível.</div>')+'</div></section>'+
+     '<section class="card" style="margin-top:14px;padding:20px"><h3>Biblioteca de Classes</h3>'+
+       '<p>Próxima fase: materiais e envio de atividades para avaliação do instrutor.</p></section>'+
+     '<p class="form-hint" style="margin-top:14px">Dados oficiais lançados pela liderança. Nenhuma edição de requisitos, frequência ou pontuação é permitida neste portal.</p>'+
      '<button class="btn btn-ghost" type="button" data-portal-logout style="width:auto;margin-top:12px">Sair</button></div>';
  }
  function header(){
