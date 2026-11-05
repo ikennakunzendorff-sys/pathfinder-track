@@ -719,6 +719,7 @@ button { cursor: pointer; }
   <div id="app"></div>
   <script src="access-requests.js"></script>
   <script src="portal.js"></script>
+  <script src="class-files.js"></script>
   <script src="activity-reviews.js"></script>
   <script>
 const SUPABASE_URL = 'https://ddusmreyrqumzlbpdanz.supabase.co';
@@ -3861,6 +3862,7 @@ function classesView() {
 
 function classesOverviewView() {
   const reviewPanel=window.PTActivityReviews?.panel()||"";
+  const libraryPanel=window.PTClassFiles?.staffPanel()||"";
   const levels=availableClassLevels();
   const members=visibleMembers().filter(m=>m.active!==false);
   const cards=levels.map((cl,index)=>{
@@ -3879,6 +3881,7 @@ function classesOverviewView() {
   return `${mobileTop()}<div class="classes-page">
     <div class="topbar"><div><h1>Classes</h1><p>${esc(state.club.name)} · Class requirement progress</p></div></div>
     ${reviewPanel}
+    ${libraryPanel}
     <section class="class-grid">${cards || '<div class="class-empty">No class levels are configured.</div>'}</section>
   </div>`;
 }
@@ -4256,7 +4259,10 @@ function renderApp() {
   bindNavigation();
   bindQuickSignOut();
   bindProfileAvatarMenu();
-  if(route==='classes' && !selectedClassId)window.PTActivityReviews?.bind();
+  if(route==='classes' && !selectedClassId){
+    window.PTActivityReviews?.bind();
+    window.PTClassFiles?.bindStaff();
+  }
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
   document.querySelectorAll('[data-viewer-logout]').forEach(btn=>btn.onclick=signOut);
   if(route==='staff' && window.PTAccessRequests)window.PTAccessRequests.bindDirector();
