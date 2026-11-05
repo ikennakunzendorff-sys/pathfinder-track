@@ -18,16 +18,21 @@ async function upload(bucket,path,file,token){
  return res.json();
 }
 async function open(bucket,path){
- const token=await getValidAccessToken(state.token,false);
- const res=await authenticatedFetch(SUPABASE_URL+"/storage/v1/object/sign/"+bucket+"/"+path,{
-  method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expiresIn:60})
- },token);
- if(!res.ok)throw Error("Sem permissão para abrir este arquivo.");
- const data=await res.json();
- const signed=data.signedURL||data.signedUrl;
- if(!signed)throw Error("Não foi possível gerar o link temporário.");
- const url=new URL(signed,SUPABASE_URL).href;
- window.open(url,"_blank","noopener,noreferrer");
+ // Open synchronously from the user gesture so mobile popup blockers do not discard the download.
+ const tab=window.open("about:blank","_blank");
+ if(tab)tab.opener=null;
+ try{
+   const token=await getValidAccessToken(state.token,false);
+   const res=await authenticatedFetch(SUPABASE_URL+"/storage/v1/object/sign/"+bucket+"/"+path,{
+     method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expiresIn:60})
+   },token);
+   if(!res.ok)throw Error("Sem permissão para abrir este arquivo.");
+   const data=await res.json();
+   const signed=data.signedURL||data.signedUrl;
+   if(!signed)throw Error("Não foi possível gerar o link temporário.");
+   const url=new URL(signed,SUPABASE_URL).href;
+   if(tab)tab.location.replace(url);else window.location.assign(url);
+ }catch(err){if(tab)tab.close();throw err;}
 }
 function bindOpens(root=document){
  root.querySelectorAll("[data-private-file]").forEach(btn=>btn.onclick=async()=>{
