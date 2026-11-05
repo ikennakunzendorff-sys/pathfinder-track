@@ -39,6 +39,7 @@
      scoreboardScores:[],scoreboardAttendance:[],scoreboardLoaded:false,
      auditLoaded:false,unit:units[0]||{},selectedUnitId:null,meeting:null
    };
+   if(verified[0]) await window.PTClassFiles?.loadPortalFiles(token,verified[0]);
  }
  function view(){
    if(!isPortalRole())return "";
@@ -124,7 +125,7 @@
        h(req.category||'Requisitos')+(req.is_advanced?' · Avançado':' · Regular')+'</small>'+
        (req.description?'<p class="form-hint">'+h(req.description)+'</p>':'')+
        (evidence?'<p class="form-hint">Envio: '+h(evidence.status==='approved'?'Aprovado':evidence.status==='revision_requested'?'Correção solicitada':'Aguardando avaliação')+
-       (evidence.review_notes?' · '+h(evidence.review_notes):'')+'</p>':'')+
+       (evidence.review_notes?' · '+h(evidence.review_notes):'')+'</p>'+window.PTClassFiles.portalEvidenceFor(evidence.id):'')+
        (!doneReq&&(!evidence||evidence.status==='revision_requested')
          ?'<button class="btn btn-ghost" style="width:auto;margin-top:8px" type="button" data-activity-open="'+h(req.id)+'">'+
          (evidence?'Corrigir envio':'Enviar atividade')+'</button>':'')+
@@ -133,7 +134,9 @@
    }).join('');
    const activityForm='<section class="card" id="portalActivityForm" hidden style="margin-top:14px;padding:20px"><h3>Enviar atividade</h3>'+
       '<p id="portalActivityTitle"></p><label for="portalActivityEvidence">Resposta ou evidência (10–4000 caracteres)</label>'+
-      '<textarea id="portalActivityEvidence" rows="5" maxlength="4000" style="width:100%;margin-top:8px" required></textarea>'+
+      '<textarea id="portalActivityEvidence" rows="5" maxlength="4000" style="width:100%;margin-top:8px" required></textarea>'+ 
+      '<label for="portalActivityFiles">Anexos PDF ou imagem (até 5 arquivos de 5 MB)</label>'+ 
+      '<input id="portalActivityFiles" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" style="width:100%;margin:8px 0 12px">'+
       '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">'+
       '<button class="btn btn-primary" type="button" id="portalActivitySave">Enviar para avaliação</button>'+
       '<button class="btn btn-ghost" type="button" id="portalActivityCancel">Cancelar</button></div>'+
@@ -166,8 +169,7 @@
      '<section class="card" style="margin-top:14px"><div class="card-head"><div><h3>Histórico de reuniões</h3>'+
        '<p>Reuniões regulares do ano, com presença e pontuação lançadas; eventos especiais aparecem quando houver registro individual.</p>'+
      '</div></div><div class="card-body">'+(latest||'<div class="member-empty">Nenhuma reunião disponível.</div>')+'</div></section>'+
-     '<section class="card" style="margin-top:14px;padding:20px"><h3>Biblioteca de Classes</h3>'+
-       '<p>Acompanhe os requisitos acima e utilize “Enviar atividade” para encaminhar uma resposta ao instrutor. A aprovação do envio não substitui automaticamente a assinatura oficial do requisito.</p></section>'+
+     window.PTClassFiles.portalLibrary(person)+
      '<p class="form-hint" style="margin-top:14px">Dados oficiais lançados pela liderança. Nenhuma edição de requisitos, frequência ou pontuação é permitida neste portal.</p>'+
      '<button class="btn btn-ghost" type="button" data-portal-logout style="width:auto;margin-top:12px">Sair</button></div>';
  }
@@ -179,7 +181,13 @@
    const logout=document.getElementById("logoutBtn");if(logout)logout.onclick=signOut;
    document.querySelectorAll("[data-portal-logout]").forEach(btn=>btn.onclick=signOut);
    const select=document.getElementById("portalMemberSelect");
-   if(select)select.onchange=()=>{state.portalSelectedMemberId=select.value;renderApp();};
+   if(select)select.onchange=async()=>{
+     state.portalSelectedMemberId=select.value;
+     try{await window.PTClassFiles.loadPortalFiles(await getValidAccessToken(state.token,false),state.allMembers.find(m=>String(m.id)===String(select.value)));}
+     catch(err){console.error('Library load',err);}
+     renderApp();
+   };
+   window.PTClassFiles?.bindOpens(document);
    let activeRequirement=null;
    const form=document.getElementById("portalActivityForm");
    document.querySelectorAll("[data-activity-open]").forEach(btn=>btn.onclick=()=>{
@@ -201,23 +209,31 @@
      const message=document.getElementById("portalActivityMessage");
      if(textValue.length<10){message.textContent="Escreva pelo menos 10 caracteres.";return;}
      const prev=(state.activitySubmissions||[]).find(x=>String(x.member_id)===String(memberId)&&String(x.requirement_id)===String(activeRequirement));
+     const files=Array.from(document.getElementById('portalActivityFiles').files||[]);
+     try{files.forEach(window.PTClassFiles.validate);if(files.length>5)throw Error('Máximo de 5 anexos.');}
+     catch(err){message.textContent=err.message;return;}
      save.disabled=true;save.textContent="Enviando...";
      try{
        const token=await getValidAccessToken(state.token,false);
+       let submission=prev;
        if(prev){
          if(prev.status!=="revision_requested")throw Error("Este envio já está em análise.");
          await sbWrite("activity_submissions?id=eq."+encodeURIComponent(prev.id),token,{method:"PATCH",
            body:{evidence_text:textValue,status:"submitted"}});
        }else{
-         await sbWrite("activity_submissions",token,{body:{
+         const created=await sbWrite("activity_submissions",token,{prefer:"return=representation",body:{
            club_id:state.user.club_id,member_id:memberId,requirement_id:activeRequirement,
            submitted_by:state.user.id,evidence_text:textValue
          }});
+         submission=created?.[0];
+         if(!submission?.id)throw Error('Atividade registrada, mas não foi possível recuperar o identificador.');
        }
+       if(files.length)await window.PTClassFiles.uploadEvidence(submission,memberId,files,token);
        state.activitySubmissions=await sb("activity_submissions?member_id=in.("+
           state.allMembers.map(m=>m.id).join(",")+")&select=id,member_id,requirement_id,status,evidence_text,review_notes,updated_at",token);
+       await window.PTClassFiles.loadPortalFiles(token,state.allMembers.find(m=>String(m.id)===String(memberId)));
        renderApp();
-     }catch(err){message.textContent=err.message||"Não foi possível enviar.";save.disabled=false;save.textContent="Enviar para avaliação";}
+     }catch(err){message.textContent=(err.message||'Não foi possível enviar.')+' Se a resposta foi registrada, não a envie novamente antes de atualizar a página.';save.disabled=false;save.textContent="Enviar para avaliação";}
    };
  }
  function nav(){
