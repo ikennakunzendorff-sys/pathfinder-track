@@ -126,9 +126,9 @@
        (req.description?'<p class="form-hint">'+h(req.description)+'</p>':'')+
        (evidence?'<p class="form-hint">Envio: '+h(evidence.status==='approved'?'Aprovado':evidence.status==='revision_requested'?'Correção solicitada':'Aguardando avaliação')+
        (evidence.review_notes?' · '+h(evidence.review_notes):'')+'</p>'+window.PTClassFiles.portalEvidenceFor(evidence.id):'')+
-       (!doneReq&&(!evidence||evidence.status==='revision_requested')
+       (!doneReq&&(!evidence||evidence.status==='revision_requested'||evidence.status==='submitted')
          ?'<button class="btn btn-ghost" style="width:auto;margin-top:8px" type="button" data-activity-open="'+h(req.id)+'">'+
-         (evidence?'Corrigir envio':'Enviar atividade')+'</button>':'')+
+         (evidence?.status==='submitted'?'Adicionar anexos':evidence?'Corrigir envio':'Enviar atividade')+'</button>':'')+
        '</div><small>'+
        (doneReq?'Concluído':inProgress?'Em andamento':'Pendente')+'</small></div>';
    }).join('');
@@ -196,7 +196,10 @@
      const sub=(state.activitySubmissions||[]).find(x=>String(x.member_id)===String(state.portalSelectedMemberId)&&String(x.requirement_id)===String(activeRequirement));
      document.getElementById("portalActivityTitle").textContent=req?.title||"Atividade";
      document.getElementById("portalActivityEvidence").value=sub?.evidence_text||"";
-     document.getElementById("portalActivityMessage").textContent="";
+     const onlyFiles=sub?.status==='submitted';
+     document.getElementById("portalActivityEvidence").readOnly=onlyFiles;
+     document.getElementById("portalActivitySave").textContent=onlyFiles?'Anexar arquivos':'Enviar para avaliação';
+     document.getElementById("portalActivityMessage").textContent=onlyFiles?'A atividade já está em avaliação. Você pode adicionar anexos, sem alterar a resposta.':'';
      form.hidden=false;form.scrollIntoView({block:"nearest",behavior:"smooth"});
    });
    const cancel=document.getElementById("portalActivityCancel");
@@ -212,14 +215,18 @@
      const files=Array.from(document.getElementById('portalActivityFiles').files||[]);
      try{files.forEach(window.PTClassFiles.validate);if(files.length>5)throw Error('Máximo de 5 anexos.');}
      catch(err){message.textContent=err.message;return;}
+     if(prev?.status==='submitted'&&!files.length){message.textContent='Selecione um arquivo para anexar.';return;}
      save.disabled=true;save.textContent="Enviando...";
+     let submissionCommitted=false;
      try{
        const token=await getValidAccessToken(state.token,false);
        let submission=prev;
        if(prev){
-         if(prev.status!=="revision_requested")throw Error("Este envio já está em análise.");
-         await sbWrite("activity_submissions?id=eq."+encodeURIComponent(prev.id),token,{method:"PATCH",
-           body:{evidence_text:textValue,status:"submitted"}});
+         if(prev.status==='revision_requested'){
+           await sbWrite("activity_submissions?id=eq."+encodeURIComponent(prev.id),token,{method:"PATCH",
+             body:{evidence_text:textValue,status:"submitted"}});
+           submissionCommitted=true;
+         }else if(prev.status!=='submitted')throw Error('Este envio já está aprovado.');
        }else{
          const created=await sbWrite("activity_submissions",token,{prefer:"return=representation",body:{
            club_id:state.user.club_id,member_id:memberId,requirement_id:activeRequirement,
@@ -227,13 +234,26 @@
          }});
          submission=created?.[0];
          if(!submission?.id)throw Error('Atividade registrada, mas não foi possível recuperar o identificador.');
+         submissionCommitted=true;
        }
        if(files.length)await window.PTClassFiles.uploadEvidence(submission,memberId,files,token);
        state.activitySubmissions=await sb("activity_submissions?member_id=in.("+
           state.allMembers.map(m=>m.id).join(",")+")&select=id,member_id,requirement_id,status,evidence_text,review_notes,updated_at",token);
        await window.PTClassFiles.loadPortalFiles(token,state.allMembers.find(m=>String(m.id)===String(memberId)));
        renderApp();
-     }catch(err){message.textContent=(err.message||'Não foi possível enviar.')+' Se a resposta foi registrada, não a envie novamente antes de atualizar a página.';save.disabled=false;save.textContent="Enviar para avaliação";}
+     }catch(err){
+       const reason=err.message||'Não foi possível enviar.';
+       if(submissionCommitted){
+         try{
+           const token=await getValidAccessToken(state.token,false);
+           state.activitySubmissions=await sb('activity_submissions?member_id=in.('+state.allMembers.map(m=>m.id).join(',')+')&select=id,member_id,requirement_id,status,evidence_text,review_notes,updated_at',token);
+           await window.PTClassFiles.loadPortalFiles(token,state.allMembers.find(m=>String(m.id)===String(memberId)));
+           renderApp();alert('A resposta foi salva, mas houve um problema no anexo: '+reason+' Abra a atividade novamente para tentar anexar.');
+           return;
+         }catch(refreshErr){console.error(refreshErr);}
+       }
+       message.textContent=reason;save.disabled=false;save.textContent='Enviar para avaliação';
+     }
    };
  }
  function nav(){
