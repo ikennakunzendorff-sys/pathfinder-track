@@ -58,7 +58,13 @@ async function uploadEvidence(submission,memberId,fileList,token){
      id,submission_id:submission.id,club_id:state.user.club_id,member_id:memberId,
      file_path:path,display_name:file.name.slice(0,180),uploaded_by:state.user.id
    }});
-   await upload("pt-activity-evidence",path,file,token);
+   try{
+     await upload("pt-activity-evidence",path,file,token);
+   }catch(err){
+     try{await sbWrite("activity_evidence_files?id=eq."+encodeURIComponent(id),token,{method:"DELETE"});}
+     catch(cleanupError){console.warn("Evidence metadata cleanup failed",cleanupError);}
+     throw err;
+   }
  }
 }
 function linkButtons(files,bucket){
@@ -152,7 +158,14 @@ function bindStaff(){
       id,club_id:state.user.club_id,class_level_id:select.value,requirement_id:req.value||null,
       title,description:desc||null,external_url:url||null,file_path:path,created_by:state.user.id
     }});
-    if(file)await upload("pt-class-library",path,file,token);
+    if(file){
+      try{await upload("pt-class-library",path,file,token);}
+      catch(err){
+        try{await sbWrite("class_library_materials?id=eq."+encodeURIComponent(id),token,{method:"DELETE"});}
+        catch(cleanupError){console.warn("Library metadata cleanup failed",cleanupError);}
+        throw err;
+      }
+    }
     document.getElementById("ptLibraryTitle").value="";
     document.getElementById("ptLibraryDesc").value="";
     document.getElementById("ptLibraryURL").value="";
