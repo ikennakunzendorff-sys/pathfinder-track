@@ -1,7 +1,7 @@
 /* Pathfinder Track — Phase 3 activity review panel (staff only). */
 (function(){
 "use strict";
-let submissions=[],loading=false,loaded=false;
+let submissions=[],evidenceFiles=[],loading=false,loaded=false;
 function html(value){return esc(String(value??""));}
 function allowed(){return state?.mode==="live"&&["director","instructor"].includes(state.user?.role);}
 function panel(){
@@ -21,7 +21,7 @@ function renderRows(){
    const req=s.requirements?.title||"Requisito";
    return '<article style="padding:15px 0;border-top:1px solid var(--line)" data-review-id="'+html(s.id)+'">'+
      '<strong>'+html(member)+'</strong><p>'+html(s.requirements?.code||"")+' · '+html(req)+'</p>'+
-     '<p style="white-space:pre-wrap;overflow-wrap:anywhere">'+html(s.evidence_text)+'</p>'+
+     '<p style="white-space:pre-wrap;overflow-wrap:anywhere">'+html(s.evidence_text)+'</p>'+window.PTClassFiles.linkButtons(evidenceFiles.filter(f=>String(f.submission_id)===String(s.id)),"pt-activity-evidence")+
      '<label for="reviewNotes_'+html(s.id)+'">Orientações (obrigatórias ao pedir correção)</label>'+
      '<textarea id="reviewNotes_'+html(s.id)+'" rows="2" maxlength="1000" style="width:100%" placeholder="Comentários para o Desbravador"></textarea>'+
      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+
@@ -30,6 +30,7 @@ function renderRows(){
      '</div><p role="status" aria-live="polite" class="form-hint" data-review-message></p></article>';
  }).join(""):'<p class="form-hint">Nenhuma atividade aguardando avaliação.</p>';
  root.querySelectorAll('[data-review-action]').forEach(btn=>btn.onclick=()=>review(btn));
+ window.PTClassFiles?.bindOpens(root);
 }
 async function reload(){
  if(!allowed()||loading)return;
@@ -39,6 +40,7 @@ async function reload(){
  try{
    const token=await getValidAccessToken(state.token,false);
    submissions=await sb("activity_submissions?status=eq.submitted&select=id,member_id,requirement_id,evidence_text,created_at,members(full_name),requirements(code,title)&order=created_at.asc&limit=100",token);
+   evidenceFiles=await window.PTClassFiles.evidenceFilesFor(submissions.map(s=>s.id),token);
    loaded=true;renderRows();
  }catch(err){root.textContent="Não foi possível carregar atividades: "+err.message;}
  finally{loading=false;}
