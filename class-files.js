@@ -73,7 +73,7 @@ function linkButtons(files,bucket){
 }
 let portalFiles=[],portalMaterials=[];
 async function loadPortalFiles(token,member){
- const reqIds=new Set((state.requirements||[]).filter(r=>String(r.class_level_id)===String(member.current_class_level_id)).map(r=>String(r.id)));
+ if(!member?.current_class_level_id){portalFiles=[];portalMaterials=[];return {files:[],materials:[]};}
  const ids=(state.activitySubmissions||[]).filter(s=>String(s.member_id)===String(member.id)).map(s=>s.id);
  const [files,materials]=await Promise.all([
    evidenceFilesFor(ids,token),
