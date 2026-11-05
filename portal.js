@@ -226,7 +226,8 @@
            await sbWrite("activity_submissions?id=eq."+encodeURIComponent(prev.id),token,{method:"PATCH",
              body:{evidence_text:textValue,status:"submitted"}});
            submissionCommitted=true;
-         }else if(prev.status!=='submitted')throw Error('Este envio já está aprovado.');
+         }else if(prev.status==='submitted')submissionCommitted=true;
+         else throw Error('Este envio já está aprovado.');
        }else{
          const created=await sbWrite("activity_submissions",token,{prefer:"return=representation",body:{
            club_id:state.user.club_id,member_id:memberId,requirement_id:activeRequirement,
