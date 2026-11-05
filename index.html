@@ -701,6 +701,18 @@ button { cursor: pointer; }
 @media(max-width:900px){
   .pt-quick-signout {top:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px));right:12px;padding:10px 15px;}
 }
+.pt-profile-menu{display:none}
+.pt-profile-trigger{border:2px solid white;border-radius:50%;width:44px;height:44px;background:var(--forest-700);color:white;font-weight:800;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.2)}
+.pt-profile-trigger:focus-visible{outline:3px solid var(--forest-700);outline-offset:3px}
+.pt-profile-dropdown{position:absolute;right:0;top:calc(100% + 8px);min-width:205px;max-width:min(280px,calc(100vw - 20px));border-radius:12px;border:1px solid var(--line);box-shadow:0 12px 36px rgba(0,0,0,.16);background:white;padding:8px;z-index:1301}
+.pt-profile-dropdown[hidden]{display:none!important}
+.pt-profile-name{padding:9px 12px;font-weight:750;font-size:13px;overflow-wrap:anywhere;border-bottom:1px solid var(--line)}
+.pt-profile-dropdown button{width:100%;border:0;border-radius:8px;background:transparent;text-align:left;padding:12px;color:var(--ink);font-weight:750;cursor:pointer;min-height:44px}
+.pt-profile-dropdown button:hover,.pt-profile-dropdown button:focus-visible{background:var(--forest-100)}
+@media(max-width:900px){
+  .pt-quick-signout{display:none!important}
+  .pt-profile-menu{display:block;position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:1300}
+}
 </style>
 </head>
 <body>
@@ -2357,7 +2369,7 @@ function sidebar() {
   </aside>`;
 }
 
-function mobileTop(){ return `<div class="mobile-top">${brand()}<div style="display:flex;align-items:center;gap:9px">${languageControl()}<div class="avatar">${initials(state.user.full_name)}</div></div></div>`; }
+function mobileTop(){ return `<div class="mobile-top">${brand()}<div style="display:flex;align-items:center;gap:9px">${languageControl()}</div></div>`; }
 function bottomNav(){
   const admin=state.user.role==='director';
   const meetingAccess=canManageMeetings();
@@ -4189,6 +4201,35 @@ function scoreCard(m) {
   </section>`;
 }
 
+function profileAvatarMenu(){
+  const language=typeof uiLanguage==='string'?uiLanguage:'pt';
+  const logoutLabel=language==='pt'?'Sair':language==='es'?'Cerrar sesión':'Log out';
+  const menuLabel=language==='pt'?'Menu da conta':language==='es'?'Menú de la cuenta':'Account menu';
+  return `<div class="pt-profile-menu" data-pt-profile>
+    <button type="button" class="pt-profile-trigger" aria-label="${menuLabel}" aria-haspopup="true" aria-expanded="false" data-profile-trigger>
+      ${esc(initials(state?.user?.full_name||'User'))}
+    </button>
+    <div class="pt-profile-dropdown" data-profile-dropdown hidden>
+      <div class="pt-profile-name">${esc(state?.user?.full_name||'')}</div>
+      <button type="button" data-profile-logout>⎋ ${logoutLabel}</button>
+    </div>
+  </div>`;
+}
+function bindProfileAvatarMenu(){
+  const host=document.querySelector('[data-pt-profile]');
+  if(!host)return;
+  const trigger=host.querySelector('[data-profile-trigger]');
+  const menu=host.querySelector('[data-profile-dropdown]');
+  const close=()=>{menu.hidden=true;trigger.setAttribute('aria-expanded','false');};
+  trigger.onclick=()=>{const next=menu.hidden;menu.hidden=!next;trigger.setAttribute('aria-expanded',String(next));};
+  host.querySelector('[data-profile-logout]').onclick=signOut;
+  // Abort all document listeners when the current screen is rerendered.
+  if(window.ptProfileMenuAbort)window.ptProfileMenuAbort.abort();
+  const controller=new AbortController();
+  window.ptProfileMenuAbort=controller;
+  document.addEventListener('click',event=>{if(!host.contains(event.target))close();},{signal:controller.signal});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'){close();trigger.focus();}},{signal:controller.signal});
+}
 function quickSignOutButton(){
   const label=uiLanguage==='pt'?'Sair':uiLanguage==='es'?'Salir':'Sign out';
   return `<button class="pt-quick-signout" type="button" data-quick-signout aria-label="${label}">⎋ ${label}</button>`;
@@ -4201,15 +4242,17 @@ function renderApp() {
   if(!state) return loginView();
   if(window.PTPortal?.isPortalRole()){
     route='dashboard';
-    app.innerHTML=`<div class="app-layout">${window.PTPortal.nav()}<main class="main">${window.PTPortal.view()}</main></div>${window.PTPortal.mobileNav()}${quickSignOutButton()}`;
+    app.innerHTML=`<div class="app-layout">${window.PTPortal.nav()}<main class="main">${window.PTPortal.view()}</main></div>${window.PTPortal.mobileNav()}${quickSignOutButton()}${profileAvatarMenu()}`;
     window.PTPortal.bind();
     bindQuickSignOut();
+    bindProfileAvatarMenu();
     return;
   }
   if(route==='meeting' && !canManageMeetings()) route='classes';
-  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():(route==='reports'?reportsView():(route==='history'?historyView():(route==='settings'?settingsView():dashboardView()))))))))}</main></div>${bottomNav()}${quickSignOutButton()}`;
+  app.innerHTML = `<div class="app-layout">${sidebar()}<main class="main">${route==='meeting'?meetingView():(route==='members'?membersView():(route==='classes'?classesView():(route==='units'?unitsView():(route==='scoreboard'?scoreboardView():(route==='staff'?staffView():(route==='reports'?reportsView():(route==='history'?historyView():(route==='settings'?settingsView():dashboardView()))))))))}</main></div>${bottomNav()}${quickSignOutButton()}${profileAvatarMenu()}`;
   bindNavigation();
   bindQuickSignOut();
+  bindProfileAvatarMenu();
   const logout = document.getElementById('logoutBtn'); if(logout) logout.onclick = signOut;
   document.querySelectorAll('[data-viewer-logout]').forEach(btn=>btn.onclick=signOut);
   if(route==='staff' && window.PTAccessRequests)window.PTAccessRequests.bindDirector();
