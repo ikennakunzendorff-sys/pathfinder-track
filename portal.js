@@ -16,13 +16,14 @@
    ]);
    const ids=links.map(x=>x.member_id);
    const filter=ids.length?"&id=in.("+ids.join(",")+")":"&id=eq.00000000-0000-0000-0000-000000000000";
-   const [members,statuses,attendance,scores,meetings,maxima]=await Promise.all([
+   const [members,statuses,attendance,scores,meetings,maxima,submissions]=await Promise.all([
      sb("members?club_id=eq."+enc+filter+"&select=id,full_name,school_grade,current_class_level_id,unit_id,active,created_at,class_levels(name)&order=full_name",token),
      ids.length?sb("member_requirement_status?member_id=in.("+ids.join(",")+")&select=member_id,requirement_id,status,completed_at",token):Promise.resolve([]),
      ids.length?sb("attendance?member_id=in.("+ids.join(",")+")&select=meeting_id,member_id,present",token):Promise.resolve([]),
      ids.length?sb("meeting_scores?member_id=in.("+ids.join(",")+")&select=meeting_id,member_id,points_awarded,max_points_snapshot",token):Promise.resolve([]),
      ids.length?sb("meetings?club_id=eq."+enc+"&select=id,meeting_date,title,unit_id,club_year_id,meeting_type&order=meeting_date.desc&limit=500",token):Promise.resolve([]),
-     ids.length?Promise.all(ids.map(id=>sb("rpc/portal_meeting_maxima?target_member_id="+encodeURIComponent(id),token))):Promise.resolve([])
+     ids.length?Promise.all(ids.map(id=>sb("rpc/portal_meeting_maxima?target_member_id="+encodeURIComponent(id),token))):Promise.resolve([]),
+     ids.length?sb("activity_submissions?member_id=in.("+ids.join(",")+")&select=id,member_id,requirement_id,status,evidence_text,review_notes,updated_at",token):Promise.resolve([])
    ]);
    const own=new Set(ids.map(String));
    const verified=members.filter(m=>own.has(String(m.id))&&m.active!==false);
@@ -33,7 +34,7 @@
      allMembers:verified,members:[],portalLinks:links,portalAttendance:attendance,
      portalMaxima:Object.fromEntries(ids.map((id,i)=>[id,maxima[i]||[]])),
      portalScores:scores,portalSelectedMemberId:verified[0]?.id||null,
-     classLevels,requirements,requirementStatuses:statuses,meetings,
+     classLevels,requirements,requirementStatuses:statuses,meetings,activitySubmissions:submissions,
      categories:[],staff:[],staffClassLinks:[],auditLogs:[],scoreboardMeetings:[],
      scoreboardScores:[],scoreboardAttendance:[],scoreboardLoaded:false,
      auditLoaded:false,unit:units[0]||{},selectedUnitId:null,meeting:null
@@ -109,19 +110,34 @@
          '</small></div><div style="text-align:right"><strong>'+h(note)+'</strong><small>'+
          (maxPoints?ownPoints+' / '+maxPoints+' pts':'Sem pontuação individual')+'</small></div></div>';
      }).join('');
+   const activityMap=new Map((state.activitySubmissions||[]).filter(x=>String(x.member_id)===id).map(x=>[String(x.requirement_id),x]));
    const progressRows=(state.requirements||[]).filter(r=>String(r.class_level_id)===String(person.current_class_level_id))
      .sort((a,b)=>Number(a.is_advanced)-Number(b.is_advanced)||(a.sort_index||0)-(b.sort_index||0));
    const classItems=progressRows.map(req=>{
      const status=statuses.find(x=>String(x.requirement_id)===String(req.id));
+     const evidence=activityMap.get(String(req.id));
      const doneReq=status?.status==='completed'||!!status?.completed_at;
      const inProgress=!doneReq&&status?.status==='in_progress';
      return '<div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:start">'+
        '<span aria-hidden="true" style="font-size:18px">'+(doneReq?'✓':inProgress?'◐':'○')+'</span><div style="min-width:0;flex:1"><strong>'+
        h(req.code?req.code+' — '+req.title:req.title)+'</strong><small style="display:block">'+
        h(req.category||'Requisitos')+(req.is_advanced?' · Avançado':' · Regular')+'</small>'+
-       (req.description?'<p class="form-hint">'+h(req.description)+'</p>':'')+'</div><small>'+
+       (req.description?'<p class="form-hint">'+h(req.description)+'</p>':'')+
+       (evidence?'<p class="form-hint">Envio: '+h(evidence.status==='approved'?'Aprovado':evidence.status==='revision_requested'?'Correção solicitada':'Aguardando avaliação')+
+       (evidence.review_notes?' · '+h(evidence.review_notes):'')+'</p>':'')+
+       (!doneReq&&(!evidence||evidence.status==='revision_requested')
+         ?'<button class="btn btn-ghost" style="width:auto;margin-top:8px" type="button" data-activity-open="'+h(req.id)+'">'+
+         (evidence?'Corrigir envio':'Enviar atividade')+'</button>':'')+
+       '</div><small>'+
        (doneReq?'Concluído':inProgress?'Em andamento':'Pendente')+'</small></div>';
    }).join('');
+   const activityForm='<section class="card" id="portalActivityForm" hidden style="margin-top:14px;padding:20px"><h3>Enviar atividade</h3>'+
+      '<p id="portalActivityTitle"></p><label for="portalActivityEvidence">Resposta ou evidência (10–4000 caracteres)</label>'+
+      '<textarea id="portalActivityEvidence" rows="5" maxlength="4000" style="width:100%;margin-top:8px" required></textarea>'+
+      '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">'+
+      '<button class="btn btn-primary" type="button" id="portalActivitySave">Enviar para avaliação</button>'+
+      '<button class="btn btn-ghost" type="button" id="portalActivityCancel">Cancelar</button></div>'+
+      '<p id="portalActivityMessage" role="status" aria-live="polite"></p></section>';
    const basicPending=classReqs.filter(x=>!completed.has(String(x.id))).length;
    const advancedReqs=progressRows.filter(r=>r.is_advanced);
    const advancedDone=advancedReqs.filter(r=>completed.has(String(r.id))).length;
@@ -146,11 +162,12 @@
      '<section class="card" style="margin-top:14px"><div class="card-head"><div><h3>Requisitos da classe</h3><p>'+
        done+' concluídos, '+basicPending+' pendentes · Avançados: '+advancedDone+' / '+advancedReqs.length+
        '</p></div></div><div class="card-body">'+(classItems||'<div class="member-empty">Nenhum requisito cadastrado para esta classe.</div>')+'</div></section>'+
+     activityForm+
      '<section class="card" style="margin-top:14px"><div class="card-head"><div><h3>Histórico de reuniões</h3>'+
        '<p>Reuniões regulares do ano, com presença e pontuação lançadas; eventos especiais aparecem quando houver registro individual.</p>'+
      '</div></div><div class="card-body">'+(latest||'<div class="member-empty">Nenhuma reunião disponível.</div>')+'</div></section>'+
      '<section class="card" style="margin-top:14px;padding:20px"><h3>Biblioteca de Classes</h3>'+
-       '<p>Próxima fase: materiais e envio de atividades para avaliação do instrutor.</p></section>'+
+       '<p>Acompanhe os requisitos acima e utilize “Enviar atividade” para encaminhar uma resposta ao instrutor. A aprovação do envio não substitui automaticamente a assinatura oficial do requisito.</p></section>'+
      '<p class="form-hint" style="margin-top:14px">Dados oficiais lançados pela liderança. Nenhuma edição de requisitos, frequência ou pontuação é permitida neste portal.</p>'+
      '<button class="btn btn-ghost" type="button" data-portal-logout style="width:auto;margin-top:12px">Sair</button></div>';
  }
@@ -163,6 +180,45 @@
    document.querySelectorAll("[data-portal-logout]").forEach(btn=>btn.onclick=signOut);
    const select=document.getElementById("portalMemberSelect");
    if(select)select.onchange=()=>{state.portalSelectedMemberId=select.value;renderApp();};
+   let activeRequirement=null;
+   const form=document.getElementById("portalActivityForm");
+   document.querySelectorAll("[data-activity-open]").forEach(btn=>btn.onclick=()=>{
+     activeRequirement=btn.dataset.activityOpen;
+     const req=(state.requirements||[]).find(x=>String(x.id)===String(activeRequirement));
+     const sub=(state.activitySubmissions||[]).find(x=>String(x.member_id)===String(state.portalSelectedMemberId)&&String(x.requirement_id)===String(activeRequirement));
+     document.getElementById("portalActivityTitle").textContent=req?.title||"Atividade";
+     document.getElementById("portalActivityEvidence").value=sub?.evidence_text||"";
+     document.getElementById("portalActivityMessage").textContent="";
+     form.hidden=false;form.scrollIntoView({block:"nearest",behavior:"smooth"});
+   });
+   const cancel=document.getElementById("portalActivityCancel");
+   if(cancel)cancel.onclick=()=>{form.hidden=true;activeRequirement=null;};
+   const save=document.getElementById("portalActivitySave");
+   if(save)save.onclick=async()=>{
+     if(!activeRequirement)return;
+     const memberId=state.portalSelectedMemberId;
+     const textValue=document.getElementById("portalActivityEvidence").value.trim();
+     const message=document.getElementById("portalActivityMessage");
+     if(textValue.length<10){message.textContent="Escreva pelo menos 10 caracteres.";return;}
+     const prev=(state.activitySubmissions||[]).find(x=>String(x.member_id)===String(memberId)&&String(x.requirement_id)===String(activeRequirement));
+     save.disabled=true;save.textContent="Enviando...";
+     try{
+       const token=await getValidAccessToken(state.token,false);
+       if(prev){
+         if(prev.status!=="revision_requested")throw Error("Este envio já está em análise.");
+         await sbWrite("activity_submissions?id=eq."+encodeURIComponent(prev.id),token,{method:"PATCH",
+           body:{evidence_text:textValue,status:"submitted"}});
+       }else{
+         await sbWrite("activity_submissions",token,{body:{
+           club_id:state.user.club_id,member_id:memberId,requirement_id:activeRequirement,
+           submitted_by:state.user.id,evidence_text:textValue
+         }});
+       }
+       state.activitySubmissions=await sb("activity_submissions?member_id=in.("+
+          state.allMembers.map(m=>m.id).join(",")+")&select=id,member_id,requirement_id,status,evidence_text,review_notes,updated_at",token);
+       renderApp();
+     }catch(err){message.textContent=err.message||"Não foi possível enviar.";save.disabled=false;save.textContent="Enviar para avaliação";}
+   };
  }
  function nav(){
    return '<aside class="sidebar">'+brand()+languageControl()+
