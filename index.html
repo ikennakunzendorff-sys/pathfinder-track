@@ -4443,6 +4443,31 @@ async function saveMeeting(btn){
     const meetingDate = state.meeting?.rawDate || localISODate();
     if(meetingDate<state.clubYear.start_date || meetingDate>state.clubYear.end_date) throw new Error('The meeting date is outside the active club year.');
     let meetingId = state.meeting?.id || null;
+    // A meeting may have been deleted in another screen/device after the form was opened.
+    // Never send attendance or scoring for an obsolete meeting id.
+    if(meetingId) {
+      const current=await sb('meetings?id=eq.'+encodeURIComponent(meetingId)+
+        '&club_id=eq.'+encodeURIComponent(state.user.club_id)+
+        '&unit_id=eq.'+encodeURIComponent(unitId)+
+        '&select=id,meeting_date,meeting_type&limit=1',state.token);
+      if(!current.length) {
+        const message=uiLanguage==='pt'
+          ? 'Esta reunião foi excluída ou não está mais disponível. Deseja criá-la novamente nesta unidade e salvar os pontos que estão na tela?'
+          :uiLanguage==='es'
+          ? 'Esta reunión fue eliminada o ya no está disponible. ¿Desea crearla de nuevo y guardar los puntos mostrados?'
+          :'This meeting was deleted or is no longer available. Recreate it and save the points currently on screen?';
+        if(!confirm(message)) throw new Error(uiLanguage==='pt'
+          ? 'Salvamento cancelado. Os pontos continuam na tela, mas ainda não foram gravados.'
+          :'Save canceled. The points remain on screen but are not saved.');
+        // Require the current staff member to be authorized for this exact unit.
+        if(state.user.role!=='director' && String(state.user.unit_id)!==String(unitId))
+          throw new Error('You do not have permission to recreate this unit meeting.');
+        meetingId=null;
+        state.meetings=(state.meetings||[]).filter(m=>String(m.id)!==String(state.meeting?.id));
+      } else if(current[0].meeting_type!=='regular' || String(current[0].meeting_date)!==String(meetingDate)) {
+        throw new Error('The selected meeting changed. Reload it before saving.');
+      }
+    }
 
     if(!meetingId) {
       const payload = [{
@@ -4463,6 +4488,12 @@ async function saveMeeting(btn){
       }
       if(!meetingId) throw new Error('The meeting could not be created.');
       state.meeting = {...state.meeting,id:meetingId,unit_id:unitId,meeting_date:meetingDate,rawDate:meetingDate,date:formatMeetingDate(meetingDate)};
+      // Keep the newly created record in memory; otherwise another visit can reuse a stale id.
+      state.meetings=[{id:meetingId,unit_id:unitId,club_id:state.user.club_id,
+        club_year_id:state.clubYear.id,meeting_date:meetingDate,
+        title:state.meeting.title||'Club Meeting',meeting_type:'regular',unit_bonus_points:0},
+        ...(state.meetings||[]).filter(m=>String(m.id)!==String(meetingId) &&
+          !(String(m.unit_id)===String(unitId)&&String(m.meeting_date)===String(meetingDate)))];
     }
 
     const attendanceRows = state.members.map(m=>({
