@@ -147,6 +147,7 @@ button { cursor: pointer; }
 .mobile-staff-actions { display:none; margin:-12px 0 18px; }
 .mobile-staff-actions .btn { width:100%; }
 .mobile-meeting-actions { display:none; margin:-8px 0 18px; }
+.mobile-meeting-save{display:none;}
 .mobile-meeting-actions .btn { width:100%; }
 
 .pt-language-control{
@@ -432,6 +433,8 @@ button { cursor: pointer; }
 .score-person-head small { display:block; margin-top:4px; color:var(--muted); }
 @media (max-width: 900px) {
   .meeting-page { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+  .meeting-page .mobile-meeting-save{display:block;margin:8px 0 14px;}
+  .meeting-page .mobile-meeting-save .btn{width:100%;min-height:46px;}
   .meeting-page .sticky-save {
     position:fixed;
     z-index:1100;
@@ -4208,7 +4211,7 @@ function meetingView() {
     <div class="topbar"><div><h1>Meeting · ${state.meeting?.date || 'Today'}</h1><p>${state.unit.name} · Tap each criterion to award or remove points.</p></div><div class="top-actions"><div class="meeting-tools">${unitPicker()}<button class="btn btn-ghost" data-new-meeting style="width:auto">+ New meeting / event</button></div></div></div>
     ${mobileUnitPicker()}
     <div class="mobile-meeting-actions"><button class="btn btn-primary" data-new-meeting>+ New meeting / event</button></div>
-    <div class="mobile-meeting-save" style="display:none"><button class="btn btn-primary" data-save-meeting>💾 Save meeting</button></div>
+    <div class="mobile-meeting-save"><button class="btn btn-primary" data-save-meeting>💾 Save meeting</button></div>
     <div class="score-legend">${scoreCategories.map(c=>`<span class="legend-pill">${c.name} ${c.points} pts</span>`).join('')}<span class="legend-pill">Bonus optional</span></div>
     <div id="scoreList">${state.members.map(scoreCard).join('')}</div>
     <div class="sticky-save">
