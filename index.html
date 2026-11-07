@@ -430,7 +430,27 @@ button { cursor: pointer; }
   .bottom-nav button.active { color:var(--forest-800); }
 }
 .score-person-head small { display:block; margin-top:4px; color:var(--muted); }
-@media (max-width: 720px) { .sticky-save { bottom: 74px; } }
+@media (max-width: 900px) {
+  .meeting-page { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+  .meeting-page .sticky-save {
+    position:fixed;
+    z-index:1100;
+    bottom:calc(72px + env(safe-area-inset-bottom, 0px));
+    left:12px;
+    right:12px;
+    margin:0;
+    padding:10px;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.97);
+    box-shadow:0 6px 30px rgba(23,63,50,.22);
+  }
+  .meeting-page .sticky-save .btn-primary{min-height:48px;font-size:15px;}
+  .meeting-page .sticky-save .meeting-delete-btn{display:none;}
+}
+@media (max-width: 720px) {
+  .meeting-page .mobile-meeting-save{display:block;margin:8px 0 14px;}
+  .meeting-page .mobile-meeting-save .btn{width:100%;min-height:46px;}
+}
 
 .staff-page { max-width:1120px; }
 .staff-directory { display:grid; gap:9px; }
@@ -4188,11 +4208,12 @@ function meetingView() {
     <div class="topbar"><div><h1>Meeting · ${state.meeting?.date || 'Today'}</h1><p>${state.unit.name} · Tap each criterion to award or remove points.</p></div><div class="top-actions"><div class="meeting-tools">${unitPicker()}<button class="btn btn-ghost" data-new-meeting style="width:auto">+ New meeting / event</button></div></div></div>
     ${mobileUnitPicker()}
     <div class="mobile-meeting-actions"><button class="btn btn-primary" data-new-meeting>+ New meeting / event</button></div>
+    <div class="mobile-meeting-save" style="display:none"><button class="btn btn-primary" data-save-meeting>💾 Save meeting</button></div>
     <div class="score-legend">${scoreCategories.map(c=>`<span class="legend-pill">${c.name} ${c.points} pts</span>`).join('')}<span class="legend-pill">Bonus optional</span></div>
     <div id="scoreList">${state.members.map(scoreCard).join('')}</div>
     <div class="sticky-save">
       ${state.user?.role==='director' && state.meeting?.id?`<button class="btn btn-ghost meeting-delete-btn" id="deleteMeeting">Delete meeting</button>`:''}
-      <button class="btn btn-primary" id="saveMeeting">Save meeting</button>
+      <button class="btn btn-primary" id="saveMeeting" data-save-meeting>💾 Save meeting</button>
     </div>
     ${meetingCreatorModal()}
   </div>`;
@@ -4278,7 +4299,7 @@ function renderApp() {
   const newMeetingTitle=document.getElementById('newMeetingTitle'); if(newMeetingTitle) newMeetingTitle.oninput=()=>{newMeetingTitle.dataset.touched='1';};
   const meetingCreatorForm=document.getElementById('meetingCreatorForm'); if(meetingCreatorForm) meetingCreatorForm.onsubmit=createMeetingOrEvent;
   const saveSpecialEventBtn=document.getElementById('saveSpecialEvent'); if(saveSpecialEventBtn) saveSpecialEventBtn.onclick=()=>saveSpecialEvent(saveSpecialEventBtn);
-  const save = document.getElementById('saveMeeting'); if(save) save.onclick = ()=>saveMeeting(save);
+  document.querySelectorAll('[data-save-meeting]').forEach(btn=>btn.onclick=()=>saveMeeting(btn));
   const deleteMeetingBtn = document.getElementById('deleteMeeting'); if(deleteMeetingBtn) deleteMeetingBtn.onclick = ()=>deleteMeeting(deleteMeetingBtn);
   const addMember=document.getElementById('addMemberBtn'); if(addMember) addMember.onclick=()=>openMemberEditor();
   const addMemberMobile=document.getElementById('addMemberBtnMobile'); if(addMemberMobile) addMemberMobile.onclick=()=>openMemberEditor();
@@ -4396,15 +4417,20 @@ async function deleteMeeting(btn){
 }
 
 async function saveMeeting(btn){
+  if(document.querySelector('[data-save-meeting][data-saving="true"]'))return;
+  const buttons=Array.from(document.querySelectorAll('[data-save-meeting]'));
+  const initialLabels=buttons.map(b=>b.textContent);
+  const paint=(label,disabled,working=false)=>buttons.forEach(b=>{
+    b.disabled=disabled;b.textContent=label;
+    if(working)b.dataset.saving='true';else delete b.dataset.saving;
+  });
   if(state.mode==='demo') {
-    btn.textContent='Demo saved ✓'; btn.disabled=true;
-    setTimeout(()=>{btn.disabled=false;btn.textContent='Save meeting';},1400);
+    paint('Demo saved ✓',true);
+    setTimeout(()=>buttons.forEach((b,i)=>{if(b.isConnected){b.disabled=false;b.textContent=initialLabels[i];}}),1400);
     return;
   }
 
-  btn.disabled = true;
-  const original = btn.textContent;
-  btn.textContent = 'Saving…';
+  paint('Saving…',true,true);
   try {
     const unitId = activeUnitId();
     if(!state.clubYear) throw new Error('Activate a club year in Settings before recording a meeting.');
@@ -4467,12 +4493,11 @@ async function saveMeeting(btn){
     });
 
     state.scoreboardLoaded=false;
-    btn.textContent='Saved ✓';
-    setTimeout(()=>{btn.disabled=false;btn.textContent=original;},1600);
+    paint('Saved ✓',true);
+    setTimeout(()=>buttons.forEach((b,i)=>{if(b.isConnected){b.disabled=false;b.textContent=initialLabels[i];}}),2000);
   } catch(err) {
     console.error(err);
-    btn.textContent='Save failed — retry';
-    btn.disabled=false;
+    paint('Save failed — retry',false);
     alert(translateUiString(err.message || 'The meeting could not be saved.'));
   }
 }
